@@ -4,7 +4,7 @@ import 'email_verification_page.dart';
 
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:your_app_name/core/constants/api_config.dart';
+import '../../core/constants/api_config.dart';
 
 class ContactInfoPage extends StatelessWidget {
   final TextEditingController phoneController = TextEditingController();
