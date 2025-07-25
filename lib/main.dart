@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_core/firebase_core.dart'; // Add this
 import 'features/onboarding/welcome_page.dart';
-import 'features/dashboard/dashboard_page.dart'; // Replace with your actual home page
+import 'features/dashboard/dashboard_page.dart';
+import 'firebase_options.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized(); // Required before Firebase.init
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );// Firebase initialization
   runApp(NexPayApp());
 }
 
@@ -36,9 +42,9 @@ class AuthChecker extends StatelessWidget {
         }
 
         if (snapshot.hasData && snapshot.data == true) {
-          return DashboardPage(); // Navigate to home if logged in
+          return DashboardPage(); // Go to dashboard if logged in
         } else {
-          return WelcomePage(); // Else show onboarding
+          return WelcomePage(); // Go to onboarding if not logged in
         }
       },
     );

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1058557199980",
+    "project_id": "nexpay-62e04",
+    "storage_bucket": "nexpay-62e04.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1058557199980:android:ae3e41676c68d284237a49",
+        "android_client_info": {
+          "package_name": "com.example.nex_pay_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAAgIkfpXX4sh84SQwgdAdCNrY1OxIgv04"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
