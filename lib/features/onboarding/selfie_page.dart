@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../core/constants/colors.dart';
 import 'setup_pin_page.dart';
+import '../../models/registration_data.dart';
 
 class SelfiePage extends StatefulWidget {
   @override
@@ -69,6 +70,7 @@ class _SelfiePageState extends State<SelfiePage> {
               Spacer(),
               ElevatedButton(
                 onPressed: () {
+                RegistrationData.selfieImage = selfieImage;
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => SetupPinPage()),
