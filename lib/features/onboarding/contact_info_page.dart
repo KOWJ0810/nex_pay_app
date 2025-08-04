@@ -42,7 +42,7 @@ class _ContactInfoPageState extends State<ContactInfoPage> {
       final validationResponse = await http.post(
         Uri.parse('${ApiConfig.baseUrl}/users/validateContact'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'email': email, 'phone_num': phone}),
+        body: jsonEncode({'email': email, 'phoneNum': phone}),
       );
 
       if (validationResponse.statusCode != 200) {
