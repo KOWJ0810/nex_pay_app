@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/colors.dart';
 import 'contact_info_page.dart';
+import '../auth/login_page.dart';
 
 class WelcomePage extends StatelessWidget {
   @override
@@ -67,7 +68,12 @@ class WelcomePage extends StatelessWidget {
             ),
             SizedBox(height: 16),
             GestureDetector(
-              onTap: () {},
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginPage()),
+                );
+              },
               child: RichText(
                 text: TextSpan(
                   text: 'Have an account? ',
