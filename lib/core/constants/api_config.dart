@@ -5,10 +5,10 @@ class ApiConfig {
     //static const String baseUrl = "http://192.168.100.17:8080/api";
 
     //Base URL for the localhost
-    //static const String baseUrl = "http://localhost:8080/api";
+    static const String baseUrl = "http://localhost:8080/api";
     
     //kenneph mobile hotspot
-    static const String baseUrl = "http://172.20.10.4:8080/api";
+    //static const String baseUrl = "http://172.20.10.4:8080/api";
 
     
 }
