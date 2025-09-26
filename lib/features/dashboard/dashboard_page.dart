@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:nex_pay_app/features/topup/top_up_page.dart';
 import '../../core/constants/colors.dart';
 
 class DashboardPage extends StatelessWidget {
+  final int userId = 152;
   final String userName = 'Kenneph';
   final double balance = 1234.56;
 
@@ -77,7 +79,13 @@ class DashboardPage extends StatelessWidget {
                   _buildAction(Icons.send, 'Send'),
                   _buildAction(Icons.qr_code_scanner, 'Scan'),
                   _buildAction(Icons.request_page, 'Request'),
-                  _buildAction(Icons.wallet, 'Top Up'),
+                  _buildAction(Icons.wallet, 'Top Up', onPressed:(){                                     
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => TopUpPage())
+                    );
+                  }
+                  )
                 ],
               ),
 
@@ -105,17 +113,20 @@ class DashboardPage extends StatelessWidget {
     );
   }
 
-  Widget _buildAction(IconData icon, String label) {
-    return Column(
-      children: [
-        CircleAvatar(
-          radius: 28,
-          backgroundColor: primaryColor,
-          child: Icon(icon, color: Colors.white),
-        ),
-        SizedBox(height: 6),
-        Text(label, style: TextStyle(fontSize: 14)),
-      ],
+  Widget _buildAction(IconData icon, String label, {VoidCallback? onPressed}) {
+      return GestureDetector(
+      onTap: onPressed,
+      child: Column(
+        children: [
+          CircleAvatar(
+            radius: 28,
+            backgroundColor: primaryColor,
+            child: Icon(icon, color: Colors.white),
+          ),
+          SizedBox(height: 6),
+          Text(label, style: TextStyle(fontSize: 14)),
+        ],
+      ),
     );
   }
 
