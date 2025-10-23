@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart'; // Add this
 import 'features/onboarding/welcome_page.dart';
@@ -11,6 +12,12 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );// Firebase initialization
+
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown
+  ]);
+
   Stripe.publishableKey = 'pk_test_51RsIOV2zHCnMrgzi3rmJo62TK9ZWWTTLOMu77vKhzBb6YMXYKxOtcAkTq8BdzyizNxI3yVWRr4uwMmHHr9l42Xeo00xejQkbbd';
   runApp(NexPayApp());
 }
@@ -29,7 +36,7 @@ class NexPayApp extends StatelessWidget {
 class AuthChecker extends StatelessWidget {
   Future<bool> isLoggedIn() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool('is_logged_in') ?? false;
+    return false;
   }
 
   @override
