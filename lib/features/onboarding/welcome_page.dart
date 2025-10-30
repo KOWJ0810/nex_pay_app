@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../core/constants/colors.dart';
 import 'contact_info_page.dart';
 import '../auth/login_page.dart';
+import '../../router.dart';
+import 'package:go_router/go_router.dart';
 
 class WelcomePage extends StatelessWidget {
   @override
@@ -48,10 +50,7 @@ class WelcomePage extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
               child: ElevatedButton(
                 onPressed: () {
-                    Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => ContactInfoPage())
-                    );
+                    context.push('/contact-info');
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: accentColor,
@@ -69,10 +68,7 @@ class WelcomePage extends StatelessWidget {
             SizedBox(height: 16),
             GestureDetector(
               onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => LoginPage()),
-                );
+                context.push('/login');
               },
               child: RichText(
                 text: TextSpan(
