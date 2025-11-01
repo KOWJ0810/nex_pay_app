@@ -1,9 +1,11 @@
 // lib/pages/account_page.dart
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../core/constants/colors.dart';
 import '../../widgets/nex_scaffold.dart';
-import 'package:go_router/go_router.dart';
 import '../../router.dart' show RouteNames;
 
 class AccountPage extends StatefulWidget {
@@ -14,7 +16,6 @@ class AccountPage extends StatefulWidget {
 }
 
 class _AccountPageState extends State<AccountPage> {
-  // Mock user info (wire to backend later)
   final String fullName = 'Kenneph Lee';
   final String phone = '+60 12-345 6789';
   final String email = 'kenneph@example.com';
@@ -23,6 +24,10 @@ class _AccountPageState extends State<AccountPage> {
   bool _pushNoti = true;
   bool _marketingNoti = false;
   bool _biometrics = true;
+
+  static const double _extraFabClearance = 76;
+  static const double _reservedBottomSpace =
+      kBottomNavigationBarHeight + _extraFabClearance;
 
   void _onDevices(BuildContext context) {
     context.pushNamed(RouteNames.trustedDevices);
@@ -33,11 +38,11 @@ class _AccountPageState extends State<AccountPage> {
     final bottomPad = MediaQuery.of(context).padding.bottom;
 
     return NexScaffold(
-      currentIndex: 3, // Account tab
+      currentIndex: 3,
       body: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
-          // Header
+          // ─────────── Header ───────────
           SliverAppBar(
             automaticallyImplyLeading: false,
             expandedHeight: 220,
@@ -48,7 +53,11 @@ class _AccountPageState extends State<AccountPage> {
               background: Container(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [primaryColor, primaryColor.withOpacity(.85), accentColor.withOpacity(.9)],
+                    colors: [
+                      primaryColor,
+                      primaryColor.withOpacity(.85),
+                      accentColor.withOpacity(.9),
+                    ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -60,20 +69,22 @@ class _AccountPageState extends State<AccountPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Top row
                         Row(
                           children: [
                             const Text(
                               'Account',
-                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 20),
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 20,
+                              ),
                             ),
                             const Spacer(),
-                            _glassIconButton(Icons.settings_rounded, onTap: () {}),
+                            _glassIconButton(Icons.settings_rounded,
+                                onTap: () {}),
                           ],
                         ),
                         const SizedBox(height: 16),
-
-                        // Profile card (glass)
                         _GlassCard(
                           child: Row(
                             children: [
@@ -83,9 +94,14 @@ class _AccountPageState extends State<AccountPage> {
                                 decoration: BoxDecoration(
                                   color: Colors.white.withOpacity(.18),
                                   borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: Colors.white.withOpacity(.28)),
+                                  border: Border.all(
+                                      color: Colors.white.withOpacity(.28)),
                                 ),
-                                child: const Icon(Icons.person_rounded, color: Colors.white, size: 32),
+                                child: const Icon(
+                                  Icons.person_rounded,
+                                  color: Colors.white,
+                                  size: 32,
+                                ),
                               ),
                               const SizedBox(width: 14),
                               Expanded(
@@ -94,14 +110,15 @@ class _AccountPageState extends State<AccountPage> {
                                   children: [
                                     Text(fullName,
                                         style: const TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w800,
-                                          fontSize: 16,
-                                        )),
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 16)),
                                     const SizedBox(height: 4),
                                     Text(
                                       phone,
-                                      style: TextStyle(color: Colors.white.withOpacity(.92)),
+                                      style: TextStyle(
+                                          color:
+                                              Colors.white.withOpacity(.92)),
                                     ),
                                   ],
                                 ),
@@ -109,7 +126,10 @@ class _AccountPageState extends State<AccountPage> {
                               const SizedBox(width: 8),
                               TextButton(
                                 onPressed: _onEditProfile,
-                                child: const Text('Edit', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                                child: const Text('Edit',
+                                    style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w700)),
                               ),
                             ],
                           ),
@@ -122,7 +142,7 @@ class _AccountPageState extends State<AccountPage> {
             ),
           ),
 
-          // Content (rounded white sheet)
+          // ─────────── Content ───────────
           SliverToBoxAdapter(
             child: Container(
               decoration: const BoxDecoration(
@@ -137,23 +157,20 @@ class _AccountPageState extends State<AccountPage> {
                     _SectionHeader('Basic Information'),
                     _CardSection(children: [
                       _InfoTile(
-                        icon: Icons.badge_rounded,
-                        title: 'Full name',
-                        value: fullName,
-                        onTap: _onEditProfile,
-                      ),
+                          icon: Icons.badge_rounded,
+                          title: 'Full name',
+                          value: fullName,
+                          onTap: _onEditProfile),
                       _InfoTile(
-                        icon: Icons.phone_rounded,
-                        title: 'Phone',
-                        value: phone,
-                        onTap: _onEditPhone,
-                      ),
+                          icon: Icons.phone_rounded,
+                          title: 'Phone',
+                          value: phone,
+                          onTap: _onEditPhone),
                       _InfoTile(
-                        icon: Icons.mail_rounded,
-                        title: 'Email',
-                        value: email,
-                        onTap: _onEditEmail,
-                      ),
+                          icon: Icons.mail_rounded,
+                          title: 'Email',
+                          value: email,
+                          onTap: _onEditEmail),
                       _InfoTile(
                         icon: Icons.fingerprint_rounded,
                         title: 'User ID',
@@ -206,57 +223,60 @@ class _AccountPageState extends State<AccountPage> {
                     _SectionHeader('Privacy'),
                     _CardSection(children: [
                       _NavTile(
-                        icon: Icons.privacy_tip_rounded,
-                        title: 'Privacy policy',
-                        onTap: () => _openWeb('https://example.com/privacy'),
-                      ),
+                          icon: Icons.privacy_tip_rounded,
+                          title: 'Privacy policy',
+                          onTap: () =>
+                              _openWeb('https://example.com/privacy')),
                       _NavTile(
-                        icon: Icons.description_rounded,
-                        title: 'Terms of service',
-                        onTap: () => _openWeb('https://example.com/terms'),
-                      ),
+                          icon: Icons.description_rounded,
+                          title: 'Terms of service',
+                          onTap: () =>
+                              _openWeb('https://example.com/terms')),
                     ]),
 
                     const SizedBox(height: 16),
                     _SectionHeader('Support'),
                     _CardSection(children: [
                       _NavTile(
-                        icon: Icons.help_center_rounded,
-                        title: 'Help center',
-                        onTap: _onHelp,
-                      ),
+                          icon: Icons.help_center_rounded,
+                          title: 'Help center',
+                          onTap: _onHelp),
                       _NavTile(
-                        icon: Icons.bug_report_rounded,
-                        title: 'Report a problem',
-                        onTap: _onReport,
-                      ),
+                          icon: Icons.bug_report_rounded,
+                          title: 'Report a problem',
+                          onTap: _onReport),
                     ]),
 
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: ElevatedButton.icon(
-                        onPressed: _confirmLogout,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: primaryColor,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                          elevation: 0,
+                    const SizedBox(height: 28),
+
+                    // ─────────── Logout button ───────────
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: SizedBox(
+                          width: 220,
+                          height: 48,
+                          child: ElevatedButton.icon(
+                            onPressed: _confirmLogout,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: primaryColor,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              elevation: 0,
+                            ),
+                            icon: const Icon(Icons.logout_rounded),
+                            label: const Text(
+                              'Log out',
+                              style: TextStyle(fontWeight: FontWeight.w800),
+                            ),
+                          ),
                         ),
-                        icon: const Icon(Icons.logout_rounded),
-                        label: const Text('Log out', style: TextStyle(fontWeight: FontWeight.w800)),
                       ),
                     ),
 
-                    SizedBox(height: 14 + bottomPad),
-                    Center(
-                      child: Text(
-                        'NexPay • v1.0.0',
-                        style: TextStyle(color: Colors.black.withOpacity(.45), fontSize: 12, fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
+                    SizedBox(height: _reservedBottomSpace + bottomPad),
                   ],
                 ),
               ),
@@ -267,7 +287,46 @@ class _AccountPageState extends State<AccountPage> {
     );
   }
 
-  // ───────────────────── Actions / placeholders ─────────────────────
+  // ─────────── Logout logic ───────────
+  Future<void> _confirmLogout() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Log out?'),
+        content:
+            const Text('You’ll need to sign in again to access your account.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: primaryColor,
+                foregroundColor: Colors.white),
+            child: const Text('Log out'),
+          ),
+        ],
+      ),
+    );
+
+    if (ok == true && mounted) {
+      final prefs = await SharedPreferences.getInstance();
+
+      // only clear user session data — keep device_id
+      await prefs.remove('is_logged_in');
+      await prefs.remove('auth_token');
+      await prefs.remove('user_id');
+
+      _toast('Signed out');
+
+      await Future.delayed(const Duration(milliseconds: 400));
+      if (!mounted) return;
+      context.goNamed(RouteNames.login);
+    }
+  }
+
+  // ─────────── Helper methods ───────────
   void _onEditProfile() => _toast('Edit profile (coming soon)');
   void _onEditPhone() => _toast('Change phone (coming soon)');
   void _onEditEmail() => _toast('Change email (coming soon)');
@@ -278,37 +337,15 @@ class _AccountPageState extends State<AccountPage> {
 
   void _copyUserId() {
     _toast('User ID copied');
-    // Clipboard.setData(ClipboardData(text: userId)); // add `services.dart` if you want this live
-  }
-
-  void _confirmLogout() async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Log out?'),
-        content: const Text('You’ll need to sign in again to access your account.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: primaryColor, foregroundColor: Colors.white),
-            child: const Text('Log out'),
-          ),
-        ],
-      ),
-    );
-    if (ok == true && mounted) {
-      _toast('Signed out');
-      // TODO: clear session + navigate to auth
-    }
   }
 
   void _toast(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(msg)));
   }
 }
 
-// ───────────────────── UI bits ─────────────────────
+// ─────────── UI Components ───────────
 
 class _SectionHeader extends StatelessWidget {
   final String text;
@@ -318,7 +355,8 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: Text(text, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+      child: Text(text,
+          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
     );
   }
 }
@@ -334,9 +372,15 @@ class _CardSection extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 12, offset: const Offset(0, 6))],
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 12,
+              offset: const Offset(0, 6))
+        ],
       ),
-      child: Column(children: children.divide(const Divider(height: 1)).toList()),
+      child: Column(
+          children: children.divide(const Divider(height: 1)).toList()),
     );
   }
 }
@@ -348,24 +392,23 @@ class _InfoTile extends StatelessWidget {
   final Widget? trailing;
   final VoidCallback? onTap;
 
-  const _InfoTile({
-    required this.icon,
-    required this.title,
-    required this.value,
-    this.trailing,
-    this.onTap,
-  });
+  const _InfoTile(
+      {required this.icon,
+      required this.title,
+      required this.value,
+      this.trailing,
+      this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
       onTap: onTap,
       leading: CircleAvatar(
-        radius: 20,
-        backgroundColor: accentColor.withOpacity(.16),
-        child: Icon(icon, color: primaryColor),
-      ),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+          radius: 20,
+          backgroundColor: accentColor.withOpacity(.16),
+          child: Icon(icon, color: primaryColor)),
+      title:
+          Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
       subtitle: Text(value),
       trailing: trailing ?? const Icon(Icons.chevron_right_rounded),
     );
@@ -378,24 +421,23 @@ class _NavTile extends StatelessWidget {
   final String? subtitle;
   final VoidCallback onTap;
 
-  const _NavTile({
-    required this.icon,
-    required this.title,
-    required this.onTap,
-    this.subtitle,
-  });
+  const _NavTile(
+      {required this.icon,
+      required this.title,
+      required this.onTap,
+      this.subtitle});
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
       onTap: onTap,
       leading: CircleAvatar(
-        radius: 20,
-        backgroundColor: accentColor.withOpacity(.16),
-        child: Icon(icon, color: primaryColor),
-      ),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-      subtitle: (subtitle == null) ? null : Text(subtitle!),
+          radius: 20,
+          backgroundColor: accentColor.withOpacity(.16),
+          child: Icon(icon, color: primaryColor)),
+      title:
+          Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+      subtitle: subtitle == null ? null : Text(subtitle!),
       trailing: const Icon(Icons.chevron_right_rounded),
     );
   }
@@ -407,28 +449,27 @@ class _SwitchTile extends StatelessWidget {
   final bool value;
   final ValueChanged<bool> onChanged;
 
-  const _SwitchTile({
-    required this.icon,
-    required this.title,
-    required this.value,
-    required this.onChanged,
-  });
+  const _SwitchTile(
+      {required this.icon,
+      required this.title,
+      required this.value,
+      required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
       leading: CircleAvatar(
-        radius: 20,
-        backgroundColor: accentColor.withOpacity(.16),
-        child: Icon(icon, color: primaryColor),
-      ),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-      trailing: Switch.adaptive(value: value, onChanged: onChanged, activeColor: primaryColor),
+          radius: 20,
+          backgroundColor: accentColor.withOpacity(.16),
+          child: Icon(icon, color: primaryColor)),
+      title:
+          Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+      trailing: Switch.adaptive(
+          value: value, onChanged: onChanged, activeColor: primaryColor),
     );
   }
 }
 
-// small glass card used in header
 class _GlassCard extends StatelessWidget {
   final Widget child;
   const _GlassCard({required this.child});
@@ -454,7 +495,6 @@ class _GlassCard extends StatelessWidget {
   }
 }
 
-// tiny helper for dividing children with a widget
 extension on List<Widget> {
   Iterable<Widget> divide(Widget divider) sync* {
     for (var i = 0; i < length; i++) {
@@ -470,7 +510,10 @@ Widget _glassIconButton(IconData icon, {required VoidCallback onTap}) {
     radius: 28,
     child: Container(
       padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(color: Colors.white.withOpacity(.14), shape: BoxShape.circle),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(.14),
+        shape: BoxShape.circle,
+      ),
       child: Icon(icon, color: Colors.white, size: 22),
     ),
   );

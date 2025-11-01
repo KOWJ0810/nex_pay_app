@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:nex_pay_app/features/dashboard/dashboard_page.dart';
+import 'package:nex_pay_app/router.dart';
 
 class TopUpSuccessPage extends StatefulWidget {
   final String amount;
@@ -90,10 +92,7 @@ class _TopUpSuccessPageState extends State<TopUpSuccessPage> {
                         Text("Time: ${transactionData!['transactionDateTime'].toString().split('T')[1]}"),
                         const SizedBox(height: 30),
                         ElevatedButton(
-                          onPressed: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => DashboardPage()),
-                          ),
+                          onPressed: () => context.goNamed(RouteNames.home),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFFB8E986),
                             padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),

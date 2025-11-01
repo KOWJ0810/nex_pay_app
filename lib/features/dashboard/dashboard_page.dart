@@ -15,19 +15,17 @@ class DashboardPage extends StatefulWidget {
 class _DashboardPageState extends State<DashboardPage> {
   final String userName = 'Kenneph';
   double balance = 1234.56;
-
   final List<_Tx> _transactions = <_Tx>[
     _Tx(title: 'Starbucks Coffee', date: 'Today, 9:42 AM', amount: -18.50, tagColor: Colors.orange),
     _Tx(title: 'Transfer from Lee', date: 'Yesterday, 7:10 PM', amount: 200.00, tagColor: Colors.green),
     _Tx(title: 'Maxis Bill', date: '1 Jul, 2:15 PM', amount: -100.00, tagColor: Colors.blue),
     _Tx(title: 'Stripe Top Up', date: '28 Jun, 5:21 PM', amount: 50.00, tagColor: Colors.purple),
-    _Tx(title: 'GrabFood', date: '27 Jun, 12:03 PM', amount: -24.90, tagColor: Colors.teal),
-    _Tx(title: 'Netflix', date: '26 Jun, 8:00 AM', amount: -17.00, tagColor: Colors.redAccent),
-    _Tx(title: 'Transfer to Mum', date: '25 Jun, 6:10 PM', amount: -150.00, tagColor: Colors.indigo),
+     _Tx(title: 'Stripe Top Up', date: '28 Jun, 5:21 PM', amount: 50.00, tagColor: Colors.purple),
+      _Tx(title: 'Stripe Top Up', date: '28 Jun, 5:21 PM', amount: 50.00, tagColor: Colors.purple),
+       _Tx(title: 'Stripe Top Up', date: '28 Jun, 5:21 PM', amount: 50.00, tagColor: Colors.purple),
+        _Tx(title: 'Stripe Top Up', date: '28 Jun, 5:21 PM', amount: 50.00, tagColor: Colors.purple),
+        
   ];
-
-  // show only latest 5
-  List<_Tx> get _recentTx => _transactions.take(5).toList();
 
   bool _hideBalance = false;
   late final NumberFormat _rm = NumberFormat.currency(locale: 'ms_MY', symbol: 'RM ', decimalDigits: 2);
@@ -65,7 +63,7 @@ class _DashboardPageState extends State<DashboardPage> {
         child: CustomScrollView(
           physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
           slivers: [
-            // ── Gradient header ────────────────────────────────
+            // ── Gradient header that scrolls naturally ───────────────────────────
             SliverAppBar(
               automaticallyImplyLeading: false,
               expandedHeight: 250,
@@ -88,6 +86,7 @@ class _DashboardPageState extends State<DashboardPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          // top row
                           Row(
                             children: [
                               const Text('NexPay',
@@ -158,7 +157,7 @@ class _DashboardPageState extends State<DashboardPage> {
               ),
             ),
 
-            // ── White content area ────────────────────────────────
+            // ── White content area (ALL in one place; no background gaps) ─────────
             SliverToBoxAdapter(
               child: Container(
                 decoration: const BoxDecoration(
@@ -170,6 +169,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Quick Actions
                       Row(
                         children: [
                           const Text('Quick Actions', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
@@ -189,44 +189,35 @@ class _DashboardPageState extends State<DashboardPage> {
                       const SizedBox(height: 22),
 
                       // Recent Transactions
-                      Row(
-                        children: [
-                          const Text('Recent Transactions',
-                              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-                          const Spacer(),
-                          TextButton(
-                            onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Coming soon: full transaction history')),
+                      const Text('Recent Transactions',
+                          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                        const SizedBox(height: 6), // ↓ keep just a small gap
+
+                        // List inside the same scroll
+                        if (_transactions.isEmpty)
+                          _emptyTransactions(context)
+                        else
+                          ListView.separated(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            // ↓ remove default list padding so there’s no hidden top gap
+                            padding: EdgeInsets.zero,
+                            itemCount: _transactions.length,
+                            // ↓ this is the ONLY vertical spacing between items
+                            separatorBuilder: (_, __) => const SizedBox(height: 8),
+                            itemBuilder: (context, i) {
+                              final t = _transactions[i];
+                              return _txItem(
+                                context,
+                                title: t.title,
+                                date: t.date,
+                                amount: t.amount,
+                                tagColor: t.tagColor,
                               );
                             },
-                            child: const Text('View all'),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
 
-                      if (_recentTx.isEmpty)
-                        _emptyTransactions(context)
-                      else
-                        ListView.separated(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          padding: EdgeInsets.zero,
-                          itemCount: _recentTx.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 8),
-                          itemBuilder: (context, i) {
-                            final t = _recentTx[i];
-                            return _txItem(
-                              context,
-                              title: t.title,
-                              date: t.date,
-                              amount: t.amount,
-                              tagColor: t.tagColor,
-                            );
-                          },
-                        ),
-
+                      // keep clear of bottom bar & fab
                       SizedBox(height: 90 + bottomPad),
                     ],
                   ),
@@ -302,6 +293,7 @@ class _DashboardPageState extends State<DashboardPage> {
       {required String title, required String date, required double amount, required Color tagColor}) {
     final theme = Theme.of(context);
     final isIncome = amount >= 0;
+    final icon = _txIcon(title, isIncome);
 
     return Container(
       decoration: BoxDecoration(
@@ -310,11 +302,7 @@ class _DashboardPageState extends State<DashboardPage> {
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 14, offset: const Offset(0, 6))],
       ),
       child: ListTile(
-        leading: CircleAvatar(
-          radius: 22,
-          backgroundColor: tagColor.withOpacity(.12),
-          child: Icon(_txIcon(title, isIncome), color: tagColor),
-        ),
+        leading: CircleAvatar(radius: 22, backgroundColor: tagColor.withOpacity(.12), child: Icon(icon, color: tagColor)),
         title: Text(title, style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600)),
         subtitle: Text(date, style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor)),
         trailing: Text(
