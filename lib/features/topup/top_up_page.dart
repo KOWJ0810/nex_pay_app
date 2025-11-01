@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:nex_pay_app/router.dart';
 import '../../widgets/custom_pin_keyboard.dart';
 import 'top_up_success_page.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
@@ -84,14 +86,12 @@ class _TopUpPageState extends State<TopUpPage> {
     
 
     // 3. Navigate to success screen
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => TopUpSuccessPage(
-          amount: _amount,
-          paymentIntentId: paymentIntentId,
-        ),
-      ),
+    context.pushNamed(
+      RouteNames.topUpSuccess,
+      extra: {
+        'amount': _amount,
+        'paymentIntentId': paymentIntentId,
+      },
     );
   } catch (e) {
     print('Stripe error: $e');
@@ -169,6 +169,7 @@ class _TopUpPageState extends State<TopUpPage> {
                 onClear: _onClear,
                 isEnabled: _amount.isNotEmpty,
                 onProceed: _onProceed,
+                onBackspaceLongPress: _onClear,
               ),
             
           ),

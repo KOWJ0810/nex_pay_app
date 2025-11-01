@@ -49,5 +49,7 @@
 <string>We need access to your camera to verify your IC</string>
 <key>NSCameraUsageDescription</key>
 <string>Need camera access to scan your face</string>
+<key>NSFaceIDUsageDescription</key>
+<string>Allow NexPay to use Face ID for secure sign-in.</string>
 </dict>
 </plist>

@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:nex_pay_app/router.dart';
 import '../../core/constants/colors.dart';
 import '../../core/constants/api_config.dart';
 import 'package:http/http.dart' as http;
@@ -79,11 +81,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
       );
 
       if (response.statusCode == 200 && response.body.contains("success")) {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => DashboardPage()),
-          (route) => false,
-        );
+        context.goNamed(RouteNames.icVerification);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Invalid OTP")),

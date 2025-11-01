@@ -1,3 +1,4 @@
+// lib/features/auth/login_page.dart
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui';
@@ -34,9 +35,6 @@ class _LoginPageState extends State<LoginPage> {
 
   String errorMessage = '';
   bool _isLoading = false;
-
-  static const String _demoPhone = '0123456789';
-  static const String _demoPin = '123456';
 
   @override
   void dispose() {
@@ -102,7 +100,7 @@ class _LoginPageState extends State<LoginPage> {
       required String deviceId,
       required String deviceName,
       required String platform,
-      required String token, // NEW
+      required String token,
     }) async {
       try {
         final url = Uri.parse('${ApiConfig.baseUrl}/users/registerDevice');
@@ -113,7 +111,7 @@ class _LoginPageState extends State<LoginPage> {
           url,
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token', // <-- JWT
+            'Authorization': 'Bearer $token',
           },
           body: jsonEncode({
             'userId': userId,
@@ -133,7 +131,7 @@ class _LoginPageState extends State<LoginPage> {
     }
 
     try {
-      // 1. login -> now returns token + user object
+      // 1) login
       final loginUrl = Uri.parse('${ApiConfig.baseUrl}/users/login');
       print('[login] -> POST $loginUrl');
       final loginRes = await http.post(
@@ -155,20 +153,6 @@ class _LoginPageState extends State<LoginPage> {
       }
 
       final loginData = jsonDecode(loginRes.body);
-
-      // expected:
-      // {
-      //   "message": "Login successful.",
-      //   "user": {
-      //     "user_status": "Active",
-      //     "email": "kennephooi@gmail.com",
-      //     "user_name": "ROWAN SEBASTIAN",
-      //     "user_id": 1,
-      //     "phoneNum": "0109220239"
-      //   },
-      //   "success": true,
-      //   "token": "eyJh..."
-      // }
 
       final bool loggedInOK = loginData['success'] == true;
       final token = loginData['token']?.toString() ?? '';
@@ -196,7 +180,7 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
 
-      // save what we can already (token + user profile info)
+      // persist token + user profile basics
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('auth_token', token);
       await prefs.setString('user_phone', backendPhone);
@@ -205,10 +189,10 @@ class _LoginPageState extends State<LoginPage> {
       await prefs.setString('user_status', backendStatus);
       await prefs.setInt('user_id', backendUserId);
 
-      // 2. ensure local deviceId
+      // 2) ensure deviceId
       final localDeviceId = await _ensureDeviceId();
 
-      // 3. checkDevice now should include Authorization header as well
+      // 3) checkDevice (authorized)
       final checkDeviceUrl = Uri.parse('${ApiConfig.baseUrl}/users/checkDevice');
       print('[login] -> POST $checkDeviceUrl with phoneNum=$phone deviceId=$localDeviceId');
 
@@ -216,7 +200,7 @@ class _LoginPageState extends State<LoginPage> {
         checkDeviceUrl,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token', // send token here
+          'Authorization': 'Bearer $token',
         },
         body: jsonEncode({
           'phoneNum': phone,
@@ -226,14 +210,11 @@ class _LoginPageState extends State<LoginPage> {
 
       print('[login] checkDevice status: ${checkDeviceRes.statusCode} body: ${checkDeviceRes.body}');
 
-      // CASE A: already trusted on THIS device
+      // A) trusted already
       if (checkDeviceRes.statusCode == 200) {
         final deviceData = jsonDecode(checkDeviceRes.body);
-        print('[login] deviceData: $deviceData');
 
         if (deviceData['deviceStatus'] == 'trusted') {
-          print('[login] Device is trusted -> go Dashboard');
-
           await prefs.setBool('is_logged_in', true);
           await prefs.setString('device_id', localDeviceId);
 
@@ -250,16 +231,13 @@ class _LoginPageState extends State<LoginPage> {
         }
       }
 
-      // CASE B: device not registered yet -> we must register (404 from backend)
+      // B) need register (404)
       if (checkDeviceRes.statusCode == 404) {
         final checkBody = jsonDecode(checkDeviceRes.body);
-        print('[login] 404 body: $checkBody');
 
         final int userIdFromCheck = (checkBody['userId'] is int)
             ? checkBody['userId']
             : int.tryParse('${checkBody['userId']}') ?? backendUserId;
-
-        print('[login] userIdFromCheck (register path): $userIdFromCheck');
 
         if (userIdFromCheck == 0) {
           if (!mounted) return;
@@ -278,8 +256,6 @@ class _LoginPageState extends State<LoginPage> {
           token: token,
         );
 
-        print('[login] registeredOK: $registeredOK');
-
         if (!registeredOK) {
           if (!mounted) return;
           setState(() {
@@ -288,11 +264,8 @@ class _LoginPageState extends State<LoginPage> {
           return;
         }
 
-        // save session
         await prefs.setBool('is_logged_in', true);
         await prefs.setString('device_id', localDeviceId);
-
-        print('[login] registration success -> Dashboard');
 
         loginSuccess = true;
         if (!mounted) return;
@@ -300,10 +273,9 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
 
-      // CASE C: device is NOT trusted because another device is active -> takeover flow (401)
+      // C) takeover (401)
       if (checkDeviceRes.statusCode == 401) {
         final checkBody = jsonDecode(checkDeviceRes.body);
-        print('[login] 401 body (takeover): $checkBody');
 
         final int takeoverUserId = (checkBody['userId'] is int)
             ? checkBody['userId']
@@ -317,11 +289,8 @@ class _LoginPageState extends State<LoginPage> {
           return;
         }
 
-        // you might ALSO want to persist token here for DeviceTakeoverPage if it needs it
         await prefs.setBool('is_logged_in', false);
         await prefs.setString('device_id', localDeviceId);
-
-        print('[login] navigate -> DeviceTakeoverPage(userId=$takeoverUserId)');
 
         loginSuccess = true;
         if (!mounted) return;
@@ -336,7 +305,7 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
 
-      // CASE D: user not found / bad (400)
+      // D) user not found (400)
       if (checkDeviceRes.statusCode == 400) {
         if (!mounted) return;
         setState(() {
@@ -345,8 +314,7 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
 
-      // CASE E: anything else
-      print('[login] unexpected checkDevice status ${checkDeviceRes.statusCode}');
+      // E) anything else
       if (!mounted) return;
       setState(() {
         errorMessage = 'Unexpected response (${checkDeviceRes.statusCode}).';
@@ -386,6 +354,11 @@ class _LoginPageState extends State<LoginPage> {
         ],
       ),
     );
+  }
+
+  void _goRegister() {
+    // Assumes you have a named route for ContactInfoPage
+    context.pushNamed(RouteNames.contactInfo);
   }
 
   @override
@@ -567,7 +540,7 @@ class _LoginPageState extends State<LoginPage> {
                   enabled: !_isLoading,
                 ),
 
-                if (_pinController.text.isEmpty) ...[
+                if (_pinController.text.isNotEmpty == false) ...[
                   const SizedBox(height: 6),
                   Text(
                     'Tap the boxes and enter your 6-digit PIN',
@@ -581,19 +554,13 @@ class _LoginPageState extends State<LoginPage> {
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: _isLoading ? null : _showForgotPinDialog,
-                    child: Text(
-                      'Forgot PIN?',
-                      style: TextStyle(color: accentColor),
-                    ),
+                    child: Text('Forgot PIN?', style: TextStyle(color: accentColor)),
                   ),
                 ),
 
                 if (errorMessage.isNotEmpty) ...[
                   const SizedBox(height: 6),
-                  Text(
-                    errorMessage,
-                    style: const TextStyle(color: Colors.redAccent),
-                  ),
+                  Text(errorMessage, style: const TextStyle(color: Colors.redAccent)),
                 ],
 
                 const SizedBox(height: 10),
@@ -629,14 +596,21 @@ class _LoginPageState extends State<LoginPage> {
           ),
         ),
 
-        const SizedBox(height: 28),
+        const SizedBox(height: 24),
+
+        // ▼ New: Register CTA (replaces the "Use demo phone..." text)
         Center(
-          child: Text(
-            'Use demo phone $_demoPhone and PIN $_demoPin',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: Colors.white.withOpacity(.85),
+          child: TextButton(
+            onPressed: _goRegister,
+            child: Text(
+              'New here? Click to register',
+              style: TextStyle(
+                color: Colors.white.withOpacity(.95),
+                fontWeight: FontWeight.w700,
+                decoration: TextDecoration.underline,
+                decorationColor: Colors.white.withOpacity(.85),
+              ),
             ),
-            textAlign: TextAlign.center,
           ),
         ),
       ],
