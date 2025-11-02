@@ -1,9 +1,9 @@
 // lib/features/onboarding/setup_security_questions_page.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/constants/colors.dart';
+import '../../models/registration_data.dart'; // 👈 add this import
 import '../../router.dart' show RouteNames;
 
 class SetupSecurityQuestionsPage extends StatefulWidget {
@@ -18,6 +18,7 @@ class _SetupSecurityQuestionsPageState
     extends State<SetupSecurityQuestionsPage> {
   final _formKey = GlobalKey<FormState>();
 
+  // Neutral & memorable
   static const List<String> _questions = [
     "What is the name of your first school?",
     "What is your favourite childhood game?",
@@ -74,11 +75,11 @@ class _SetupSecurityQuestionsPageState
 
     setState(() => _saving = true);
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('sec_q1', _q1!);
-      await prefs.setString('sec_a1', _a1.text.trim());
-      await prefs.setString('sec_q2', _q2!);
-      await prefs.setString('sec_a2', _a2.text.trim());
+      // ✅ Push into RegistrationData model for the createUser API
+      RegistrationData.securityQuestions = [
+        SecurityQuestion(question: _q1!.trim(), answer: _a1.text.trim()),
+        SecurityQuestion(question: _q2!.trim(), answer: _a2.text.trim()),
+      ];
 
       if (!mounted) return;
       context.pushNamed(RouteNames.setupPin);
@@ -111,13 +112,19 @@ class _SetupSecurityQuestionsPageState
                   child: Column(
                     children: [
                       const SizedBox(height: 14),
+
+                      // Capsule progress (Start → Verify → Secure). Security Qs = "Secure" step.
                       const _CapsuleProgress(
                         steps: ["Start", "Verify", "Secure"],
                         currentIndex: 3,
                       ),
+
                       const SizedBox(height: 24),
+
                       const _ShieldLogo(size: 84),
                       const SizedBox(height: 10),
+
+                      // Centered gradient title
                       Center(
                         child: ShaderMask(
                           shaderCallback: (bounds) => const LinearGradient(
@@ -129,7 +136,7 @@ class _SetupSecurityQuestionsPageState
                             "Set Up Security Questions",
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              color: Colors.white,
+                              color: Colors.white, // masked by shader
                               fontSize: 26,
                               fontWeight: FontWeight.w800,
                             ),
@@ -143,7 +150,10 @@ class _SetupSecurityQuestionsPageState
                         style: TextStyle(color: subtle),
                         textAlign: TextAlign.center,
                       ),
+
                       const SizedBox(height: 18),
+
+                      // Info Card
                       _GlassCard(
                         padding: const EdgeInsets.all(16),
                         child: Row(
@@ -170,51 +180,53 @@ class _SetupSecurityQuestionsPageState
                           ],
                         ),
                       ),
+
                       const SizedBox(height: 16),
+
+                      // Form Card
                       _GlassCard(
                         padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
                         child: Form(
                           key: _formKey,
                           child: Column(
                             children: [
-                              const _LabelWithChip(
-                                  label: "Question 1", chip: "Required"),
+                              const _LabelWithChip(label: "Question 1", chip: "Required"),
                               const SizedBox(height: 8),
                               _modernDropdown(
                                 value: _q1,
                                 items: _questions,
                                 onChanged: (v) => setState(() => _q1 = v),
-                                validator: (_) =>
-                                    _validateQuestionPair() == null ? null : "",
+                                validator: (_) => _validateQuestionPair() == null ? null : "",
                               ),
                               const SizedBox(height: 12),
                               _modernTextField(
                                 controller: _a1,
                                 hint: "Your answer",
-                                validator: (v) =>
-                                    _validateAnswer(v, which: "Question 1"),
+                                validator: (v) => _validateAnswer(v, which: "Question 1"),
                               ),
+
                               const SizedBox(height: 20),
                               const Divider(color: Colors.white24, height: 1),
                               const SizedBox(height: 20),
-                              const _LabelWithChip(
-                                  label: "Question 2", chip: "Required"),
+
+                              const _LabelWithChip(label: "Question 2", chip: "Required"),
                               const SizedBox(height: 8),
                               _modernDropdown(
                                 value: _q2,
                                 items: _questions,
                                 onChanged: (v) => setState(() => _q2 = v),
-                                validator: (_) =>
-                                    _validateQuestionPair() == null ? null : "",
+                                validator: (_) => _validateQuestionPair() == null ? null : "",
                               ),
                               const SizedBox(height: 12),
                               _modernTextField(
                                 controller: _a2,
                                 hint: "Your answer",
-                                validator: (v) =>
-                                    _validateAnswer(v, which: "Question 2"),
+                                validator: (v) => _validateAnswer(v, which: "Question 2"),
                               ),
+
                               const SizedBox(height: 10),
+
+                              // Inline pair error (if any)
                               Builder(
                                 builder: (_) {
                                   final err = _validateQuestionPair();
@@ -235,7 +247,10 @@ class _SetupSecurityQuestionsPageState
                           ),
                         ),
                       ),
+
                       const SizedBox(height: 22),
+
+                      // Continue
                       Container(
                         decoration: BoxDecoration(
                           boxShadow: [
@@ -277,6 +292,7 @@ class _SetupSecurityQuestionsPageState
                           ),
                         ),
                       ),
+
                       SizedBox(height: bottomInset > 0 ? bottomInset + 10 : 10),
                     ],
                   ),
@@ -290,6 +306,7 @@ class _SetupSecurityQuestionsPageState
   }
 
   // --- UI helpers ---
+
   Widget _modernDropdown({
     required String? value,
     required List<String> items,
@@ -305,7 +322,7 @@ class _SetupSecurityQuestionsPageState
       menuMaxHeight: 340,
       borderRadius: BorderRadius.circular(14),
 
-      // ✅ Explicit white hint
+      // ✅ Explicit white hint (stays white before selection)
       hint: const Text(
         "Select a question",
         style: TextStyle(color: Colors.white),
@@ -319,9 +336,11 @@ class _SetupSecurityQuestionsPageState
           .map(
             (q) => DropdownMenuItem<String>(
               value: q,
-              child: Text(q,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Colors.white)),
+              child: Text(
+                q,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Colors.white),
+              ),
             ),
           )
           .toList(),
@@ -338,7 +357,7 @@ class _SetupSecurityQuestionsPageState
   }) {
     return TextFormField(
       controller: controller,
-      cursorColor: accentColor,
+      cursorColor: accentColor, // caret uses your accent color
       style: const TextStyle(color: Colors.white),
       decoration: _fieldDecoration(
         hint: hint,
@@ -369,11 +388,13 @@ class _SetupSecurityQuestionsPageState
   }
 }
 
-// ==== Reusable UI bits ====
+// ==== Reusable UI bits for consistency with the rest of onboarding ====
+
 class _GlassCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
   const _GlassCard({required this.child, this.padding = const EdgeInsets.all(12)});
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -441,13 +462,15 @@ class _LabelWithChip extends StatelessWidget {
 
 class _CapsuleProgress extends StatelessWidget {
   final List<String> steps;
-  final int currentIndex;
+  final int currentIndex; // 1-indexed visual
   const _CapsuleProgress({required this.steps, required this.currentIndex});
+
   @override
   Widget build(BuildContext context) {
     final trackColor = Colors.white.withOpacity(0.12);
     final fillColor = accentColor;
     final doneColor = accentColor.withOpacity(0.75);
+
     return Column(
       children: [
         ClipRRect(
@@ -459,11 +482,12 @@ class _CapsuleProgress extends StatelessWidget {
               return Expanded(
                 child: Container(
                   height: 10,
-                  margin:
-                      EdgeInsets.symmetric(horizontal: i == 0 ? 0 : 2),
+                  margin: EdgeInsets.only(
+                    left: i == 0 ? 0 : 2,
+                    right: i == steps.length - 1 ? 0 : 2,
+                  ),
                   decoration: BoxDecoration(
-                    color:
-                        isCurrent ? fillColor : (isDone ? doneColor : trackColor),
+                    color: isCurrent ? fillColor : (isDone ? doneColor : trackColor),
                     borderRadius: BorderRadius.circular(999),
                     boxShadow: isCurrent
                         ? [
@@ -511,11 +535,13 @@ class _CapsuleProgress extends StatelessWidget {
 class _ShieldLogo extends StatelessWidget {
   final double size;
   const _ShieldLogo({required this.size});
+
   @override
   Widget build(BuildContext context) {
     return Stack(
       alignment: Alignment.center,
       children: [
+        // Glow
         Container(
           width: size,
           height: size,
@@ -530,6 +556,7 @@ class _ShieldLogo extends StatelessWidget {
             ],
           ),
         ),
+        // Ring
         Container(
           width: size,
           height: size,
@@ -541,12 +568,12 @@ class _ShieldLogo extends StatelessWidget {
                 accentColor.withOpacity(0.14),
                 accentColor.withOpacity(0.05),
               ],
+              stops: const [0.0, 0.55, 1.0],
             ),
             border: Border.all(color: accentColor.withOpacity(0.55), width: 3),
           ),
         ),
-        const Icon(Icons.admin_panel_settings_outlined,
-            color: Colors.white, size: 42),
+        const Icon(Icons.admin_panel_settings_outlined, color: Colors.white, size: 42),
       ],
     );
   }
@@ -554,23 +581,16 @@ class _ShieldLogo extends StatelessWidget {
 
 class _BackgroundBlobs extends StatelessWidget {
   const _BackgroundBlobs();
+
   @override
   Widget build(BuildContext context) {
     return IgnorePointer(
+      ignoring: true,
       child: Stack(
         children: [
-          Positioned(
-              top: -70,
-              right: -70,
-              child: _blob(accentColor.withOpacity(0.25), 280)),
-          Positioned(
-              bottom: -120,
-              left: -70,
-              child: _blob(Colors.white.withOpacity(0.08), 300)),
-          Positioned(
-              top: 240,
-              left: -60,
-              child: _blob(accentColor.withOpacity(0.10), 220)),
+          Positioned(top: -70, right: -70, child: _blob(accentColor.withOpacity(0.25), 280)),
+          Positioned(bottom: -120, left: -70, child: _blob(Colors.white.withOpacity(0.08), 300)),
+          Positioned(top: 240, left: -60, child: _blob(accentColor.withOpacity(0.10), 220)),
         ],
       ),
     );
@@ -582,8 +602,7 @@ class _BackgroundBlobs extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient:
-            RadialGradient(colors: [color, color.withOpacity(0.02)]),
+        gradient: RadialGradient(colors: [color, color.withOpacity(0.02)]),
       ),
     );
   }

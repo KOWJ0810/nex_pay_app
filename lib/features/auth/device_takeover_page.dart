@@ -7,8 +7,10 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
+import 'package:nex_pay_app/features/auth/security_fallback_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../core/constants/colors.dart';
 import '../../core/constants/api_config.dart';
@@ -47,12 +49,40 @@ class _DeviceTakeoverPageState extends State<DeviceTakeoverPage>
   int? _takeoverId;
   String? _message;
 
+  // ── Session info (now read from secure storage) ─────────
   String _authToken = '';
   int _sessionUserId = 0;
+  String? _sessionPhone;
+  String? _sessionEmail;
+  String? _sessionName;
+  String? _sessionStatus;
+
+  // Flutter Secure Storage instance (Keystore/Keychain)
+  static const FlutterSecureStorage _secure = FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
+  );
 
   late final AnimationController _entrance;
   late final Animation<double> _scaleIn;
   late final Animation<double> _fadeIn;
+
+  void _goSecurityFallback() {
+  final uid = _sessionUserId != 0 ? _sessionUserId : widget.userId;
+  if (_deviceId == null || _deviceName == null || _platform == null) {
+    _showSnack('Device details not ready yet. Please try again.');
+    return;
+  }
+  context.pushNamed(
+    RouteNames.securityFallback,
+    extra: SecurityFallbackArgs(
+      userId: uid,
+      deviceId: _deviceId!,
+      deviceName: _deviceName!,
+      platform: _platform!,
+    ),
+  );
+}
 
   @override
   void initState() {
@@ -83,22 +113,30 @@ class _DeviceTakeoverPageState extends State<DeviceTakeoverPage>
 
   Future<void> _bootstrap() async {
     final prefs = await SharedPreferences.getInstance();
-    final storedToken = prefs.getString('auth_token') ?? '';
-    final storedUserId = prefs.getInt('user_id') ?? widget.userId;
 
-    // reuse / create deviceId
+    // 1) Read from secure storage first; fall back to prefs for older logins
+    final token = await _secure.read(key: 'token') ?? prefs.getString('auth_token') ?? '';
+    final userIdStr = await _secure.read(key: 'user_id');
+    final userIdFromPrefs = prefs.getInt('user_id') ?? widget.userId;
+    final parsedUserId = int.tryParse(userIdStr ?? '') ?? userIdFromPrefs;
+
+    _sessionPhone  = await _secure.read(key: 'phoneNum') ?? prefs.getString('user_phone');
+    _sessionEmail  = await _secure.read(key: 'email') ?? prefs.getString('user_email');
+    _sessionName   = await _secure.read(key: 'user_name') ?? prefs.getString('user_name');
+    _sessionStatus = await _secure.read(key: 'user_status') ?? prefs.getString('user_status');
+
+    // 2) Ensure / reuse deviceId (we keep this in SharedPreferences by design)
     String? dId = prefs.getString('device_id');
     if (dId == null || dId.isEmpty) {
       dId = const Uuid().v4();
       await prefs.setString('device_id', dId);
     }
 
-    // platform + human-ish device name
+    // 3) Device info
     final info = DeviceInfoPlugin();
     String platform =
         Platform.isIOS ? 'iOS' : (Platform.isAndroid ? 'Android' : 'Unknown');
     String name = 'This device';
-
     try {
       if (Platform.isIOS) {
         final ios = await info.iosInfo;
@@ -108,13 +146,13 @@ class _DeviceTakeoverPageState extends State<DeviceTakeoverPage>
         name = android.model ?? android.device ?? 'Android';
       }
     } catch (_) {
-      // fallback is fine
+      // fallback fine
     }
 
     if (!mounted) return;
     setState(() {
-      _authToken = storedToken;
-      _sessionUserId = storedUserId;
+      _authToken = token;
+      _sessionUserId = parsedUserId;
       _deviceId = dId;
       _deviceName = name;
       _platform = platform;
@@ -191,112 +229,156 @@ class _DeviceTakeoverPageState extends State<DeviceTakeoverPage>
   }
 
   Future<void> _checkStatus() async {
-    // stop if already handled
-    if (_hasCompletedTakeover || _didNavigate) return;
-    if (_checking || _takeoverId == null) return;
+  // stop if already handled
+  if (_hasCompletedTakeover || _didNavigate) return;
+  if (_checking || _takeoverId == null) return;
+  if (_deviceId == null || _deviceId!.isEmpty) {
+    setState(() => _message = 'Missing device ID. Please try again.');
+    return;
+  }
 
-    setState(() {
-      _checking = true;
-    });
+  setState(() {
+    _checking = true;
+  });
 
-    final uid = _sessionUserId != 0 ? _sessionUserId : widget.userId;
-    final url =
-        Uri.parse('${ApiConfig.baseUrl}/users/checkApprovedTakeover/$uid');
+  final uid = _sessionUserId != 0 ? _sessionUserId : widget.userId;
 
-    try {
-      final res = await http.get(
-        url,
-        headers: {
-          if (_authToken.isNotEmpty) 'Authorization': 'Bearer $_authToken',
-          'Content-Type': 'application/json',
-        },
-      );
+  // 👇 pass currentDeviceId as a query param
+  final url = Uri.parse(
+    '${ApiConfig.baseUrl}/users/checkApprovedTakeover/$uid',
+  ).replace(queryParameters: {
+    'currentDeviceId': _deviceId!,
+  });
 
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
+  try {
+    final res = await http.get(
+      url,
+      headers: {
+        if (_authToken.isNotEmpty) 'Authorization': 'Bearer $_authToken',
+        'Content-Type': 'application/json',
+      },
+    );
 
-        final rawApproved = data['hasApproved'];
-        final bool hasApproved =
-            rawApproved == true ||
-            (rawApproved is String &&
-                rawApproved.toLowerCase() == 'true');
+    if (res.statusCode == 200) {
+      final data = jsonDecode(res.body) as Map<String, dynamic>;
+      final success = data['success'] == true;
+      final status = (data['status'] ?? '').toString();      // PENDING/APPROVED/...
+      final msg     = (data['message'] ?? '').toString();
 
-        if (hasApproved) {
-          // takeover approved for THIS device 🎉
-          _pollTimer?.cancel();
-          _pollTimer = null;
-          _hasCompletedTakeover = true;
+      switch (status) {
+        case 'APPROVED':
+          if (success) {
+            // 🎉 approved for THIS device
+            _pollTimer?.cancel();
+            _pollTimer = null;
+            _hasCompletedTakeover = true;
 
-          // persist local session so "home" sees user as logged in
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setBool('is_logged_in', true);
-          await prefs.setInt('user_id', uid);
-          if (_deviceId != null) {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setBool('is_logged_in', true);
+            await prefs.setInt('user_id', uid);
             await prefs.setString('device_id', _deviceId!);
-          }
 
-          if (!mounted) return;
-
-          // update UI and feedback
-          setState(() {
-            _checking = false;
-            _message = 'Approved! Redirecting…';
-          });
-          _showSnack('Approved! Redirecting…');
-
-          // mark nav triggered
-          _didNavigate = true;
-
-          // 🔑 navigate on next microtask so we're not mid-setState,
-          // and use the root GoRouter to avoid nested-shell issues.
-          Future.microtask(() {
             if (!mounted) return;
-            GoRouter.of(context).goNamed(RouteNames.home);
-          });
+            setState(() {
+              _checking = false;
+              _message = msg.isNotEmpty ? msg : 'Approved! Redirecting…';
+            });
+            _showSnack('Approved! Redirecting…');
 
-          return; // VERY IMPORTANT
-        } else {
-          // still waiting for approval
-          final waitingMsg =
-              data['message']?.toString() ?? 'Still waiting for approval…';
+            _didNavigate = true;
+            Future.microtask(() {
+              if (!mounted) return;
+              GoRouter.of(context).goNamed(RouteNames.home);
+            });
+            return;
+          } else {
+            // approved but not valid? treat as expired/unexpected
+            if (mounted) {
+              setState(() {
+                _message = msg.isNotEmpty ? msg : 'Approval invalid. Please try again.';
+              });
+            }
+          }
+          break;
+
+        case 'PENDING':
           if (mounted && !_hasCompletedTakeover && !_didNavigate) {
             setState(() {
-              _message = waitingMsg;
+              _message = msg.isNotEmpty ? msg : 'Approval is still pending.';
+              _started = true; // ensure UI shows step 1 complete
             });
           }
-        }
-      } else if (res.statusCode == 404) {
-        // request expired / missing
-        _pollTimer?.cancel();
-        _pollTimer = null;
-        if (mounted && !_hasCompletedTakeover && !_didNavigate) {
-          setState(() {
-            _message = 'No takeover request found. Start again.';
-            _started = false;
-            _takeoverId = null;
-          });
-        }
-      } else {
-        if (mounted && !_hasCompletedTakeover && !_didNavigate) {
-          setState(() {
-            _message = 'Server error (${res.statusCode}).';
-          });
-        }
+          break;
+
+        case 'EXPIRED':
+          // reset flow so user can start again
+          if (mounted) {
+            setState(() {
+              _message = msg.isNotEmpty ? msg : 'Approval expired. Please initiate again.';
+              _started = false;
+              _takeoverId = null;
+            });
+          }
+          _pollTimer?.cancel();
+          _pollTimer = null;
+          break;
+
+        case 'INVALID_DEVICE':
+          if (mounted) {
+            setState(() {
+              _message = msg.isNotEmpty ? msg : 'This device is not the approved target.';
+            });
+          }
+          _pollTimer?.cancel();
+          _pollTimer = null;
+          break;
+
+        case 'NONE':
+        default:
+          if (mounted) {
+            setState(() {
+              _message = msg.isNotEmpty ? msg : 'No takeover request found.';
+              if (status == 'NONE') {
+                _started = false;
+                _takeoverId = null;
+              }
+            });
+          }
+          _pollTimer?.cancel();
+          _pollTimer = null;
+          break;
       }
-    } catch (_) {
-      if (mounted && !_hasCompletedTakeover && !_didNavigate) {
+    } else if (res.statusCode == 403) {
+      // server already returns INVALID_DEVICE here; show body message
+      final data = jsonDecode(res.body);
+      if (mounted) {
         setState(() {
-          _message = 'Network error. Please try again.';
+          _message = (data['message'] ?? 'This device is not the target.').toString();
         });
       }
-    } finally {
+      _pollTimer?.cancel();
+      _pollTimer = null;
+    } else {
       if (mounted && !_hasCompletedTakeover && !_didNavigate) {
         setState(() {
-          _checking = false;
+          _message = 'Server error (${res.statusCode}).';
         });
       }
     }
+  } catch (e) {
+    if (mounted && !_hasCompletedTakeover && !_didNavigate) {
+      setState(() {
+        _message = 'Network error. Please try again.';
+      });
+    }
+  } finally {
+    if (mounted && !_hasCompletedTakeover && !_didNavigate) {
+      setState(() {
+        _checking = false;
+      });
+    }
   }
+}
 
   void _showSnack(String text) {
     if (!mounted) return;
@@ -403,7 +485,7 @@ class _DeviceTakeoverPageState extends State<DeviceTakeoverPage>
                                   ),
 
                                   const _Divider(),
-                                  _Step(
+                                  const _Step(
                                     index: 2,
                                     title: 'Approve on your old device',
                                     subtitle:
@@ -454,6 +536,16 @@ class _DeviceTakeoverPageState extends State<DeviceTakeoverPage>
                                 fontWeight: FontWeight.w700,
                                 color: accentColor,
                               ),
+                            ),
+                            
+                          ),
+                          const SizedBox(height: 8),
+                            TextButton.icon(
+                              onPressed: _goSecurityFallback,
+                              icon: const Icon(Icons.help_outline_rounded),
+                              label: const Text(
+                                'Unable to access your old phone? Answer security questions',
+                                style: TextStyle(fontWeight: FontWeight.w700),
                             ),
                           ),
                         ],
@@ -574,7 +666,7 @@ class _DeviceRow extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 8),
-        _StatusChip(started: true),
+        const _StatusChip(started: true),
       ],
     );
   }

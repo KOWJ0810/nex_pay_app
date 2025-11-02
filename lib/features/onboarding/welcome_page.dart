@@ -1,6 +1,8 @@
 // lib/features/onboarding/welcome_page.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nex_pay_app/router.dart';
+
 import '../../core/constants/colors.dart';
 
 class WelcomePage extends StatelessWidget {
@@ -99,7 +101,7 @@ class WelcomePage extends StatelessWidget {
                           borderRadius: BorderRadius.circular(18),
                         ),
                         child: ElevatedButton.icon(
-                          onPressed: () => context.pushNamed('contact-info'),
+                          onPressed: () => context.pushNamed(RouteNames.contactInfo),
                           icon: const Icon(Icons.arrow_forward_rounded, color: Colors.black),
                           label: const Text(
                             'Get Started',
@@ -124,7 +126,7 @@ class WelcomePage extends StatelessWidget {
 
                       // Login link
                       GestureDetector(
-                        onTap: () => context.pushNamed('login'),
+                        onTap: () => context.pushNamed(RouteNames.login),
                         child: RichText(
                           text: TextSpan(
                             text: 'Have an account? ',

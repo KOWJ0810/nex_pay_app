@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../core/constants/colors.dart';
 import '../../core/constants/api_config.dart';
@@ -26,7 +27,7 @@ class _TrustedDevicesPageState extends State<TrustedDevicesPage> {
       Platform.isIOS ? 'iOS' : (Platform.isAndroid ? 'Android' : 'Other');
   String _deviceId = '';
 
-  // user / session info
+  // user / session info (prefer secure storage)
   int _userId = 0;
   String _email = '';
   String _authToken = '';
@@ -39,6 +40,12 @@ class _TrustedDevicesPageState extends State<TrustedDevicesPage> {
   String _pendingDeviceName = ''; // e.g. "iPhone 16"
   bool _submittingOtp = false;
 
+  // Secure storage instance
+  static const FlutterSecureStorage _secure = FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
+  );
+
   @override
   void initState() {
     super.initState();
@@ -48,10 +55,15 @@ class _TrustedDevicesPageState extends State<TrustedDevicesPage> {
   Future<void> _bootstrap() async {
     final prefs = await SharedPreferences.getInstance();
 
-    final storedUserId = prefs.getInt('user_id') ?? 0;
+    // Read session from secure storage first; fallback to prefs for legacy sessions
+    final storedToken =
+        await _secure.read(key: 'token') ?? prefs.getString('auth_token') ?? '';
+    final userIdStr = await _secure.read(key: 'user_id');
+    final storedUserId =
+        int.tryParse(userIdStr ?? '') ?? (prefs.getInt('user_id') ?? 0);
+    final storedEmail =
+        await _secure.read(key: 'email') ?? (prefs.getString('user_email') ?? '');
     final storedDeviceId = prefs.getString('device_id') ?? '';
-    final storedEmail = prefs.getString('user_email') ?? '';
-    final storedToken = prefs.getString('auth_token') ?? '';
 
     // detect human-ish device label
     final info = DeviceInfoPlugin();
@@ -129,8 +141,7 @@ class _TrustedDevicesPageState extends State<TrustedDevicesPage> {
         // hasPending could be bool or "true"
         final rawHasPending = data['hasPending'];
         bool pending = rawHasPending == true ||
-            (rawHasPending is String &&
-                rawHasPending.toLowerCase() == 'true');
+            (rawHasPending is String && rawHasPending.toLowerCase() == 'true');
 
         final backendDeviceName =
             (data['toDeviceName'] ?? 'New device').toString();
@@ -335,9 +346,21 @@ class _TrustedDevicesPageState extends State<TrustedDevicesPage> {
       }
 
       if (res.statusCode == 200) {
-        // Success: sign out THIS device.
+        // Success: sign out THIS device completely.
         final prefs = await SharedPreferences.getInstance();
+        // Preserve device_id so the app can still identify this device later
+        final keepDeviceId = prefs.getString('device_id');
         await prefs.clear();
+        if (keepDeviceId != null) {
+          await prefs.setString('device_id', keepDeviceId);
+        }
+
+        // Also clear secure storage (token, user_id, etc.)
+        try {
+          await _secure.deleteAll();
+        } catch (_) {
+          // ignore; best-effort
+        }
 
         if (!mounted) return;
 
@@ -353,7 +376,6 @@ class _TrustedDevicesPageState extends State<TrustedDevicesPage> {
         );
 
         // Now hard-redirect to onboarding/welcome.
-        // Assumes you have a go_router route named 'welcome' pointing at WelcomePage (/)
         context.goNamed('welcome');
         return;
       } else {
