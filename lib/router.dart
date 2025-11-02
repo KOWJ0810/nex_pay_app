@@ -1,6 +1,8 @@
 // lib/router.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nex_pay_app/features/auth/security_fallback_page.dart';
 import 'package:nex_pay_app/features/onboarding/biometric_opt_in_page.dart';
 import 'package:nex_pay_app/features/onboarding/setup_security_questions_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -45,20 +47,17 @@ class RouteNames {
   static const confirmPin = 'confirm-pin';
   static const registerSuccess = 'register-success';
   static const enableBiometric = 'enable-biometric';
+  static const transactionHistory = 'transaction-history';
 
   static const account = 'account';
   static const trustedDevices = 'trusted-devices';
-  static const takeover = 'takeover';
   static const topUpSuccess = 'topup-success';
+  static const takeover = 'takeover';
+  static const securityFallback = 'security-fallback';
 
 }
 
-/// (Optional) args holder used by takeover route
-class TakeoverArgs {
-  final String phoneNum;
-  final int userId;
-  const TakeoverArgs({required this.phoneNum, required this.userId});
-}
+
 
 final GoRouter appRouter = GoRouter(
   // Start here; Splash will immediately route to the proper place.
@@ -83,6 +82,34 @@ final GoRouter appRouter = GoRouter(
       name: RouteNames.login,
       path: '/login',
       builder: (ctx, st) => const LoginPage(),
+    ),
+    GoRoute(
+      name: RouteNames.takeover,
+      path: '/takeover',
+      builder: (ctx, st) {
+        String phoneNum = '';
+        int userId = 0;
+
+        final extra = st.extra;
+
+        if (extra is Map) {
+          phoneNum = (extra['phoneNum'] ?? '').toString();
+          final raw = extra['userId'];
+          userId = raw is int ? raw : int.tryParse('$raw') ?? 0;
+        } else {
+          try {
+            final dyn = extra as dynamic;
+            phoneNum = (dyn.phoneNum as String?) ?? '';
+            userId  = (dyn.userId  as int?)    ?? 0;
+          } catch (_) {
+            // leave defaults
+          }
+        }
+        return DeviceTakeoverPage(
+          phoneNum: phoneNum,
+          userId: userId,
+        );
+      },
     ),
     GoRoute(
       name: RouteNames.contactInfo,
@@ -177,17 +204,6 @@ final GoRouter appRouter = GoRouter(
       builder: (ctx, st) => const TrustedDevicesPage(),
     ),
     GoRoute(
-      name: RouteNames.takeover,
-      path: '/takeover',
-      builder: (ctx, st) {
-        final args = st.extra as TakeoverArgs;
-        return DeviceTakeoverPage(
-          phoneNum: args.phoneNum,
-          userId: args.userId,
-        );
-      },
-    ),
-    GoRoute(
       name: RouteNames.topUpSuccess,
       path: '/topup-success',
       builder: (ctx, st) {
@@ -209,6 +225,14 @@ final GoRouter appRouter = GoRouter(
       path: '/enable-biometric',
       builder: (context, state) => const BiometricOptInPage(),
     ),
+    GoRoute(
+      name: RouteNames.securityFallback,
+      path: '/security-fallback',
+      builder: (ctx, st) {
+        final args = st.extra as SecurityFallbackArgs;
+        return SecurityQuestionsFallbackPage(args: args);
+      },
+    ),
   ],
 );
 
@@ -229,14 +253,17 @@ class _SplashPageState extends State<SplashPage> {
 
   Future<void> _decide() async {
   final prefs = await SharedPreferences.getInstance();
-  final onboarded = prefs.getBool('onboarding_complete') ?? false;
+  final secure = const FlutterSecureStorage();
+
+  final loggedIn = prefs.getBool('is_logged_in') ?? false;
+  final token = await secure.read(key: 'token');
 
   if (!mounted) return;
 
-  if (onboarded) {
-    context.goNamed(RouteNames.home);       // Done → Dashboard
+  if (loggedIn && token != null && token.isNotEmpty) {
+    context.goNamed(RouteNames.home); 
   } else {
-    context.goNamed(RouteNames.welcome);    // Not done → Welcome → OTP → IC → ...
+    context.goNamed(RouteNames.welcome); 
   }
 }
 

@@ -1,6 +1,7 @@
 // lib/pages/account_page.dart
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -289,42 +290,45 @@ class _AccountPageState extends State<AccountPage> {
 
   // ─────────── Logout logic ───────────
   Future<void> _confirmLogout() async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Log out?'),
-        content:
-            const Text('You’ll need to sign in again to access your account.'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-                backgroundColor: primaryColor,
-                foregroundColor: Colors.white),
-            child: const Text('Log out'),
-          ),
-        ],
-      ),
-    );
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Log out?'),
+      content: const Text('You’ll need to sign in again to access your account.'),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel')),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context, true),
+          style: ElevatedButton.styleFrom(
+              backgroundColor: primaryColor,
+              foregroundColor: Colors.white),
+          child: const Text('Log out'),
+        ),
+      ],
+    ),
+  );
 
-    if (ok == true && mounted) {
-      final prefs = await SharedPreferences.getInstance();
+  if (ok == true && mounted) {
+    final prefs = await SharedPreferences.getInstance();
 
-      // only clear user session data — keep device_id
-      await prefs.remove('is_logged_in');
-      await prefs.remove('auth_token');
-      await prefs.remove('user_id');
-
-      _toast('Signed out');
-
-      await Future.delayed(const Duration(milliseconds: 400));
-      if (!mounted) return;
-      context.goNamed(RouteNames.login);
+    final deviceId = prefs.getString('device_id');
+    await prefs.clear();
+    if (deviceId != null) {
+      await prefs.setString('device_id', deviceId);
     }
+
+    const secure = FlutterSecureStorage();
+    await secure.deleteAll();
+
+    _toast('Signed out');
+
+    await Future.delayed(const Duration(milliseconds: 400));
+    if (!mounted) return;
+    context.goNamed(RouteNames.login);
   }
+}
 
   // ─────────── Helper methods ───────────
   void _onEditProfile() => _toast('Edit profile (coming soon)');

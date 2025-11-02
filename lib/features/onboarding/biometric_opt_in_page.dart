@@ -1,14 +1,18 @@
 // lib/features/onboarding/biometric_opt_in_page.dart
 import 'dart:math' as math;
 import 'dart:ui';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:http/http.dart' as http;
 
 import '../../core/constants/colors.dart';
 import '../../router.dart';
+import '../../core/constants/api_config.dart'; // <-- ensure you have ApiConfig.baseUrl
 
 class BiometricOptInPage extends StatefulWidget {
   const BiometricOptInPage({super.key});
@@ -20,6 +24,8 @@ class BiometricOptInPage extends StatefulWidget {
 class _BiometricOptInPageState extends State<BiometricOptInPage>
     with TickerProviderStateMixin {
   final _auth = LocalAuthentication();
+  final _secure = const FlutterSecureStorage();
+
   bool _deviceSupported = false;
   bool _hasEnrolled = false;
   bool _busy = false;
@@ -100,14 +106,21 @@ class _BiometricOptInPageState extends State<BiometricOptInPage>
         ),
       );
 
-      if (success) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setBool('biometric_enabled', true);
-        if (!mounted) return;
-        context.goNamed(RouteNames.registerSuccess);
-      } else {
+      if (!success) {
         setState(() => _error = "Biometric authentication was cancelled.");
+        return;
       }
+
+      // Update server: biometric_enable = true
+      final ok = await _updateBiometricSetting(true);
+      if (!ok) return; // _error already set by helper
+
+      // Persist local flag for quick checks in app
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('biometric_enabled', true);
+
+      if (!mounted) return;
+      context.goNamed(RouteNames.registerSuccess);
     } catch (_) {
       setState(() => _error = "Couldn’t enable biometric. Please try again.");
     } finally {
@@ -116,10 +129,87 @@ class _BiometricOptInPageState extends State<BiometricOptInPage>
   }
 
   Future<void> _skip() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('biometric_enabled', false);
-    if (!mounted) return;
-    context.goNamed(RouteNames.registerSuccess);
+    setState(() {
+      _error = null;
+      _busy = true;
+    });
+
+    try {
+      // Update server: biometric_enable = false
+      final ok = await _updateBiometricSetting(false);
+      if (!ok) return;
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('biometric_enabled', false);
+
+      if (!mounted) return;
+      context.goNamed(RouteNames.registerSuccess);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// PUT /api/users/{user_id}/biometric  { "biometric_enable": <bool> }
+  Future<bool> _updateBiometricSetting(bool enabled) async {
+    try {
+      // try secure storage first
+      String? userId = await _secure.read(key: 'user_id');
+      String? token = await _secure.read(key: 'auth_token');
+
+      // fallback to SharedPreferences if missing
+      if (userId == null || userId.isEmpty) {
+        final prefs = await SharedPreferences.getInstance();
+        userId = prefs.getString('user_id');
+      }
+
+      if (userId == null || userId.isEmpty) {
+        setState(() => _error = "Missing user ID. Please sign in again.");
+        return false;
+      }
+
+      final uri = Uri.parse('${ApiConfig.baseUrl}/users/$userId/biometric');
+      final headers = <String, String>{
+        'Content-Type': 'application/json',
+        if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+      };
+      final body = jsonEncode({"biometric_enable": enabled});
+
+      final resp = await http
+          .put(uri, headers: headers, body: body)
+          .timeout(const Duration(seconds: 20));
+
+      if (resp.statusCode >= 200 && resp.statusCode < 300) {
+        // Example response:
+        // { "message":"Biometric setting updated successfully.", "biometric_enable": false, "success": true }
+        try {
+          final json = jsonDecode(resp.body);
+          final serverVal = json is Map ? json['biometric_enable'] : null;
+          if (serverVal is bool) {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setBool('biometric_enabled', serverVal);
+          }
+        } catch (_) {
+          // ignore parse errors; local value already set by caller
+        }
+        return true;
+      } else {
+        // Surface server message when possible
+        String msg = enabled
+            ? "Failed to enable biometric."
+            : "Failed to update biometric setting.";
+        try {
+          final js = jsonDecode(resp.body);
+          if (js is Map && js['message'] is String) {
+            msg = js['message'];
+          }
+        } catch (_) {}
+        setState(() => _error = msg);
+        return false;
+      }
+    } catch (e) {
+      setState(() => _error = "Network error. Please try again.");
+      return false;
+    }
   }
 
   @override
@@ -268,9 +358,8 @@ class _BiometricOptInPageState extends State<BiometricOptInPage>
                           ),
                         ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: _busy
-                              ? accentColor.withOpacity(0.5)
-                              : accentColor,
+                          backgroundColor:
+                              _busy ? accentColor.withOpacity(0.5) : accentColor,
                           minimumSize: const Size(double.infinity, 52),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),

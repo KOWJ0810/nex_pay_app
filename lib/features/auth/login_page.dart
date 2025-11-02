@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:uuid/uuid.dart';
 import 'package:http/http.dart' as http;
 
@@ -35,6 +36,12 @@ class _LoginPageState extends State<LoginPage> {
 
   String errorMessage = '';
   bool _isLoading = false;
+
+  // Secure storage for sensitive session data
+  static const _secure = FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
+  );
 
   @override
   void dispose() {
@@ -180,17 +187,17 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
 
-      // persist token + user profile basics
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('auth_token', token);
-      await prefs.setString('user_phone', backendPhone);
-      await prefs.setString('user_email', backendEmail);
-      await prefs.setString('user_name', backendName);
-      await prefs.setString('user_status', backendStatus);
-      await prefs.setInt('user_id', backendUserId);
+      // 🔐 persist sensitive session to secure storage (instead of SharedPreferences)
+      await _secure.write(key: 'token', value: token);
+      await _secure.write(key: 'user_id', value: '$backendUserId');
+      await _secure.write(key: 'user_phone', value: backendPhone);
+      await _secure.write(key: 'user_email', value: backendEmail);
+      await _secure.write(key: 'user_name', value: backendName);
+      await _secure.write(key: 'user_status', value: backendStatus);
 
-      // 2) ensure deviceId
+      // 2) ensure deviceId (non-sensitive, keep in prefs)
       final localDeviceId = await _ensureDeviceId();
+      final prefs = await SharedPreferences.getInstance();
 
       // 3) checkDevice (authorized)
       final checkDeviceUrl = Uri.parse('${ApiConfig.baseUrl}/users/checkDevice');
@@ -297,10 +304,7 @@ class _LoginPageState extends State<LoginPage> {
 
         context.pushNamed(
           RouteNames.takeover,
-          extra: TakeoverArgs(
-            phoneNum: phone,
-            userId: takeoverUserId,
-          ),
+          extra: TakeoverArgs(phoneNum: phone, userId: takeoverUserId),
         );
         return;
       }
@@ -598,7 +602,6 @@ class _LoginPageState extends State<LoginPage> {
 
         const SizedBox(height: 24),
 
-        // ▼ New: Register CTA (replaces the "Use demo phone..." text)
         Center(
           child: TextButton(
             onPressed: _goRegister,

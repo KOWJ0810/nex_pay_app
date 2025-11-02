@@ -3,12 +3,15 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../core/constants/colors.dart';
 import '../../core/constants/api_config.dart';
@@ -29,6 +32,12 @@ class _ConfirmPinPageState extends State<ConfirmPinPage>
   final List<String> _confirmPin = [];
   String? _error;
   bool _busy = false;
+
+  // Secure storage (Android Keystore / iOS Keychain)
+  final FlutterSecureStorage _secure = const FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
+  );
 
   late final AnimationController _bump;
   late final Animation<double> _scale;
@@ -101,6 +110,99 @@ class _ConfirmPinPageState extends State<ConfirmPinPage>
     }
   }
 
+  /// Persist token + basic user profile securely
+  Future<void> _persistSessionSecurely(Map<String, dynamic> apiJson) async {
+    // apiJson shape:
+    // {
+    //   "success": true,
+    //   "message": "...",
+    //   "token": "...",
+    //   "user": { "user_id", "user_name", "email", "phoneNum", "user_status" }
+    // }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('is_logged_in', true);
+    await prefs.setString('user_email', RegistrationData.email);
+
+    final user = (apiJson['user'] ?? const {}) as Map<String, dynamic>;
+    final token = (apiJson['token'] ?? '') as String;
+
+    await _secure.write(key: 'token', value: token);
+    await _secure.write(key: 'user_id', value: '${user['user_id'] ?? ''}');
+    await _secure.write(key: 'user_name', value: (user['user_name'] ?? ''));
+    await _secure.write(key: 'email', value: (user['email'] ?? ''));
+    await _secure.write(key: 'phoneNum', value: (user['phoneNum'] ?? ''));
+    await _secure.write(key: 'user_status', value: (user['user_status'] ?? ''));
+  }
+
+  /// Generate or reuse a stable device_id for this install
+  Future<String> _ensureDeviceId() async {
+    final prefs = await SharedPreferences.getInstance();
+    String? id = prefs.getString('device_id');
+    if (id == null || id.isEmpty) {
+      id = const Uuid().v4();
+      await prefs.setString('device_id', id);
+      debugPrint('[ConfirmPin] Generated new device_id: $id');
+    } else {
+      debugPrint('[ConfirmPin] Reusing device_id: $id');
+    }
+    return id;
+  }
+
+  /// Collect device name + platform (iOS/Android)
+  Future<Map<String, String>> _getDeviceInfo() async {
+    final plugin = DeviceInfoPlugin();
+    String deviceName = 'Unknown';
+    String platform = Platform.isIOS ? 'iOS' : (Platform.isAndroid ? 'Android' : 'Other');
+
+    if (Platform.isIOS) {
+      final info = await plugin.iosInfo;
+      deviceName = info.name ?? info.modelName ?? info.model ?? 'iPhone';
+    } else if (Platform.isAndroid) {
+      final info = await plugin.androidInfo;
+      final brand = info.brand ?? '';
+      final model = info.model ?? info.device ?? '';
+      deviceName = [brand, model].where((s) => s.isNotEmpty).join(' ').trim();
+      if (deviceName.isEmpty) deviceName = 'Android Device';
+    }
+    return {
+      'deviceName': deviceName,
+      'platform': platform,
+    };
+  }
+
+  /// Call backend to register this device
+  Future<bool> _registerDevice({
+    required int userId,
+    required String deviceId,
+    required String deviceName,
+    required String platform,
+    required String token,
+  }) async {
+    try {
+      final url = Uri.parse('${ApiConfig.baseUrl}/users/registerDevice');
+      debugPrint('[ConfirmPin] -> POST $url');
+      final res = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'userId': userId,
+          'deviceId': deviceId,
+          'deviceName': deviceName,
+          'platform': platform,
+          'registeredAt': DateTime.now().toIso8601String(),
+        }),
+      );
+      debugPrint('[ConfirmPin] registerDevice status=${res.statusCode} body=${res.body}');
+      return res.statusCode == 200;
+    } catch (e) {
+      debugPrint('[ConfirmPin] registerDevice exception: $e');
+      return false;
+    }
+  }
+
   Future<void> _onProceed() async {
     final pin = _confirmPin.join();
 
@@ -132,6 +234,7 @@ class _ConfirmPinPageState extends State<ConfirmPinPage>
     try {
       RegistrationData.pin = pin;
 
+      // 1) Upload images to Firebase Storage
       final icFrontUrl = await _uploadImage(
         RegistrationData.icFrontImage!,
         'ic_front_${RegistrationData.icNum}.jpg',
@@ -145,22 +248,61 @@ class _ConfirmPinPageState extends State<ConfirmPinPage>
         'selfie_${RegistrationData.icNum}.jpg',
       );
 
+      // 2) Security questions array (from previous screen)
+      final securityQuestionsJson = RegistrationData.securityQuestions
+          .map((q) => {"question": q.question, "answer": q.answer})
+          .toList();
+
+      // 3) Build backend-required body with your defaults:
+      //    - wallet_balance = 0
+      //    - piggy_bank_balance = 0
+      //    - all *_enabled flags = false
+      final nowIso = DateTime.now().toIso8601String();
+      final ic = RegistrationData.icNum.isEmpty ? 'user' : RegistrationData.icNum;
+
       final body = jsonEncode({
-        "user_name": RegistrationData.fullName,
+        "user_name": RegistrationData.fullName.isEmpty
+            ? "User"
+            : RegistrationData.fullName,
         "ic_num": RegistrationData.icNum,
         "phoneNum": RegistrationData.phoneNum,
+
+        "profile_image": "profile_$ic.png",
+
         "ic_image_front": icFrontUrl,
         "ic_image_back": icBackUrl,
         "user_verification_image": selfieUrl,
+
+        "ic_verified": false,
+        "email_verified": false,
+        "biometric_enabled": false,
+        "account_pin_enabled": false,
+        "emergency_wallet_enabled": false,
+        "piggy_bank_initiated": false,
+
         "email": RegistrationData.email,
         "street_address": RegistrationData.street,
         "postcode": RegistrationData.postcode,
         "city": RegistrationData.city,
         "state": RegistrationData.state,
         "country": "Malaysia",
+
         "account_pin_num": RegistrationData.pin,
+
+        "user_status": "ACTIVE",
+        "wallet_balance": 0.00,
+        "piggy_bank_balance": 0.00,
+
+        "qr_receive_string": "qr_receive_$ic",
+        "qr_pay_string": "qr_pay_$ic",
+
+        "account_created_timestamp": nowIso,
+        "email_otp": "000000",
+
+        "securityQuestions": securityQuestionsJson,
       });
 
+      // 4) Create user
       final response = await http
           .post(
             Uri.parse("${ApiConfig.baseUrl}/users/createUser"),
@@ -170,19 +312,53 @@ class _ConfirmPinPageState extends State<ConfirmPinPage>
           .timeout(const Duration(seconds: 25));
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setBool('is_logged_in', true);
-        await prefs.setString('user_email', RegistrationData.email);
+        Map<String, dynamic> js = {};
+        try {
+          js = jsonDecode(response.body) as Map<String, dynamic>;
+        } catch (_) {}
 
-        if (!mounted) return;
-        context.goNamed(RouteNames.enableBiometric);
+        if (js['success'] == true && js['user'] != null) {
+          // 5) Persist session securely
+          await _persistSessionSecurely(js);
+
+          // 6) Register this device (best-effort; don't block UX if it fails)
+          final token = (js['token'] ?? '').toString();
+          final userMap = (js['user'] ?? {}) as Map<String, dynamic>;
+          final int userId = (userMap['user_id'] is int)
+              ? userMap['user_id']
+              : int.tryParse('${userMap['user_id']}') ?? 0;
+
+          if (token.isNotEmpty && userId != 0) {
+            final deviceId = await _ensureDeviceId();
+            final info = await _getDeviceInfo();
+            final ok = await _registerDevice(
+              userId: userId,
+              deviceId: deviceId,
+              deviceName: info['deviceName']!,
+              platform: info['platform']!,
+              token: token,
+            );
+            // store device_id locally (even if register failed; it’s your install identity)
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString('device_id', deviceId);
+            if (!ok) {
+              debugPrint('[ConfirmPin] registerDevice failed — continuing to biometric screen');
+            }
+          } else {
+            debugPrint('[ConfirmPin] Missing token or userId — skip registerDevice');
+          }
+
+          if (!mounted) return;
+          // 7) Go to biometric opt-in
+          context.goNamed(RouteNames.enableBiometric);
+        } else {
+          setState(() => _error = js['message'] ?? 'Unexpected response. Please try again.');
+        }
       } else {
         String serverMsg = 'Failed to create user. Please try again.';
         try {
           final js = jsonDecode(response.body);
-          if (js is Map && js['message'] is String) {
-            serverMsg = js['message'];
-          }
+          if (js is Map && js['message'] is String) serverMsg = js['message'];
         } catch (_) {}
         setState(() => _error = serverMsg);
       }
@@ -190,7 +366,8 @@ class _ConfirmPinPageState extends State<ConfirmPinPage>
       setState(() => _error = "No internet connection. Please check your network.");
     } on TimeoutException {
       setState(() => _error = "The server took too long to respond. Try again.");
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[ConfirmPin] unexpected: $e');
       setState(() => _error = "Something went wrong. Please try again.");
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -295,7 +472,6 @@ class _ConfirmPinPageState extends State<ConfirmPinPage>
           ),
         ),
 
-        // Frosted loading overlay
         if (_busy)
           Positioned.fill(
             child: IgnorePointer(
@@ -314,7 +490,7 @@ class _ConfirmPinPageState extends State<ConfirmPinPage>
   }
 }
 
-/// Frosted loading card (no underline, no overflow)
+/// Frosted loading card
 class _FrostedLoading extends StatefulWidget {
   const _FrostedLoading();
 
@@ -355,15 +531,10 @@ class _FrostedLoadingState extends State<_FrostedLoading>
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            children: [
-              ScaleTransition(
-                scale: Tween<double>(begin: 0.9, end: 1.2).animate(
-                  CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-                ),
-                child: const Icon(Icons.lock_rounded, color: Colors.white, size: 36),
-              ),
-              const SizedBox(height: 12),
-              const Text(
+            children: const [
+              Icon(Icons.lock_rounded, color: Colors.white, size: 36),
+              SizedBox(height: 12),
+              Text(
                 "Please wait…",
                 textAlign: TextAlign.center,
                 style: TextStyle(
@@ -374,8 +545,8 @@ class _FrostedLoadingState extends State<_FrostedLoading>
                   decoration: TextDecoration.none,
                 ),
               ),
-              const SizedBox(height: 4),
-              const Text(
+              SizedBox(height: 4),
+              Text(
                 "We’re finalizing your account setup",
                 textAlign: TextAlign.center,
                 maxLines: 2,
@@ -386,8 +557,8 @@ class _FrostedLoadingState extends State<_FrostedLoading>
                   decoration: TextDecoration.none,
                 ),
               ),
-              const SizedBox(height: 12),
-              const SizedBox(
+              SizedBox(height: 12),
+              SizedBox(
                 width: 22,
                 height: 22,
                 child: CircularProgressIndicator(
@@ -533,7 +704,7 @@ class _GlassCard extends StatelessWidget {
 
 class _CapsuleProgress extends StatelessWidget {
   final List<String> steps;
-  final int currentIndex; // 1-indexed in your copy, but we treat as given number
+  final int currentIndex;
   const _CapsuleProgress({required this.steps, required this.currentIndex});
 
   @override
