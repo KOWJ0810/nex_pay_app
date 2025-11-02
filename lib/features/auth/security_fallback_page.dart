@@ -171,7 +171,7 @@ class _SecurityQuestionsFallbackPageState
         "registeredAt": DateTime.now().toIso8601String(),
       });
 
-      final res = await http.post(
+      final res = await http.put(
         url,
         headers: {
           'Content-Type': 'application/json',
