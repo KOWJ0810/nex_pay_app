@@ -1,10 +1,16 @@
 // lib/pages/dashboard_page.dart
 import 'dart:ui';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants/colors.dart';
 import '../../widgets/nex_scaffold.dart';
+import 'package:go_router/go_router.dart';
+import 'package:nex_pay_app/router.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../../core/constants/api_config.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -13,8 +19,10 @@ class DashboardPage extends StatefulWidget {
 }
 
 class _DashboardPageState extends State<DashboardPage> {
-  final String userName = 'Kenneph';
-  double balance = 1234.56;
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+
+  String? userName;
+  double? balance;
   final List<_Tx> _transactions = <_Tx>[
     _Tx(title: 'Starbucks Coffee', date: 'Today, 9:42 AM', amount: -18.50, tagColor: Colors.orange),
     _Tx(title: 'Transfer from Lee', date: 'Yesterday, 7:10 PM', amount: 200.00, tagColor: Colors.green),
@@ -34,7 +42,48 @@ class _DashboardPageState extends State<DashboardPage> {
   void initState() {
     super.initState();
     _loadPrefs();
+    _loadSecureData();
   }
+  Future<void> _loadSecureData() async {
+  try {
+    final token = await _secureStorage.read(key: 'token');
+    final userId = await _secureStorage.read(key: 'user_id');
+
+    if (token == null || userId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Session expired. Please sign in again.')),
+      );
+      return;
+    }
+
+    final res = await http.get(
+      Uri.parse('${ApiConfig.baseUrl}/users/$userId'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (res.statusCode == 200) {
+      final data = json.decode(res.body);
+      if (data['success'] == true && data['user'] != null) {
+        setState(() {
+          userName = data['user']['user_name'];
+          balance = (data['user']['wallet_balance'] ?? 0.0).toDouble();
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(data['message'] ?? 'Failed to load user profile.')),
+        );
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Server error: ${res.statusCode}')),
+      );
+    }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error loading user data: $e')),
+    );
+  }
+}
 
   Future<void> _loadPrefs() async {
     final prefs = await SharedPreferences.getInstance();
@@ -96,8 +145,10 @@ class _DashboardPageState extends State<DashboardPage> {
                             ],
                           ),
                           const SizedBox(height: 16),
-                          Text('Hello, $userName 👋',
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16)),
+                          Text(
+                            'Hello, ${userName ?? '...'} 👋',
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16),
+                          ),
                           const SizedBox(height: 12),
                           _GlassCard(
                             child: Row(
@@ -120,7 +171,7 @@ class _DashboardPageState extends State<DashboardPage> {
                                       const SizedBox(height: 6),
                                       AnimatedSwitcher(
                                         duration: const Duration(milliseconds: 220),
-                                        child: _hideBalance
+                                        child: _hideBalance || balance == null
                                             ? Container(
                                                 key: const ValueKey('hidden'),
                                                 height: 26,
@@ -180,10 +231,14 @@ class _DashboardPageState extends State<DashboardPage> {
                       const SizedBox(height: 6),
                       Row(
                         children: [
-                          Expanded(child: _ActionTile(icon: Icons.send_rounded, label: 'Send', onTap: () {})),
-                          Expanded(child: _ActionTile(icon: Icons.qr_code_scanner_rounded, label: 'Scan', onTap: () {})),
-                          Expanded(child: _ActionTile(icon: Icons.request_page_rounded, label: 'Request', onTap: () {})),
-                          Expanded(child: _ActionTile(icon: Icons.add_card_rounded, label: 'Top Up', onTap: () {})),
+                          Expanded(child: _ActionTile(icon: Icons.send_rounded, label: 'Send', onTap: () => context.pushNamed(RouteNames.searchTransferUser),)),
+                          Expanded(child: _ActionTile(icon: Icons.qr_code_scanner_rounded, label: 'Scan', onTap: () => context.pushNamed(RouteNames.scanQrCode),)),
+                          Expanded(child: _ActionTile(
+                            icon: Icons.request_page_rounded,
+                            label: 'Request',
+                            onTap: () => _handleRequestQr(context),
+                          )),
+                          Expanded(child: _ActionTile(icon: Icons.add_card_rounded, label: 'Top Up', onTap: () => context.pushNamed(RouteNames.topUp),)),
                         ],
                       ),
                       const SizedBox(height: 22),
@@ -395,6 +450,45 @@ class _ActionTileState extends State<_ActionTile> {
           ),
         ),
       ),
+    );
+  }
+}
+  Future<void> _handleRequestQr(BuildContext context) async {
+  try {
+    final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+    final token = await _secureStorage.read(key: 'token');
+
+    if (token == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No token found. Please sign in again.')),
+      );
+      return;
+    }
+
+    final response = await http.get(
+      Uri.parse('${ApiConfig.baseUrl}/p2p/qr/receive'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    print('Response status: ${response.statusCode}');
+    print('Response body: ${response.body}');
+
+    final data = json.decode(response.body);
+
+    if (data['success'] == true && data['data']?['payload'] != null) {
+      final payload = data['data']['payload'];
+      context.pushNamed(
+        RouteNames.receiveQrCode,
+        extra: {'payload': payload},
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(data['message'] ?? 'Failed to fetch QR code. Please try again.')),
+      );
+    }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error: $e')),
     );
   }
 }

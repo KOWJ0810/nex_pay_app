@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nex_pay_app/router.dart';
 import '../../widgets/custom_pin_keyboard.dart';
-import 'top_up_success_page.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../../core/constants/api_config.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class TopUpPage extends StatefulWidget {
   const TopUpPage({super.key});
@@ -16,9 +16,29 @@ class TopUpPage extends StatefulWidget {
 }
 
 class _TopUpPageState extends State<TopUpPage> {
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
   String _amount = '';
   String _rawInput = '';
-  double balance = 35.89;
+  double? balance;
+  int? userId;
+  String? token;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSecureData();
+  }
+
+  Future<void> _loadSecureData() async {
+    final storedBalance = await _secureStorage.read(key: 'wallet_balance');
+    final storedUserId = await _secureStorage.read(key: 'user_id');
+    final storedToken = await _secureStorage.read(key: 'token');
+    setState(() {
+      balance = storedBalance != null ? double.tryParse(storedBalance) ?? 0.0 : 0.0;
+      userId = storedUserId != null ? int.tryParse(storedUserId) : null;
+      token = storedToken;
+    });
+  }
 
   void _onKeyTap(String value) {
     setState(() {
@@ -47,32 +67,69 @@ class _TopUpPageState extends State<TopUpPage> {
     });
   }
 
-  void _onProceed() async {
+  Future<void> _onProceed() async {
   if (_amount.isEmpty) return;
 
   final amountInCents = (double.parse(_amount) * 100).round();
 
   try {
-    // 1. Call your backend to create PaymentIntent
+    // 🔒 Step 1: Validate auth token before calling backend
+    if (token == null || token!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Session expired. Please sign in again.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    if (userId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Missing user ID. Please log in again.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    // 🛰️ Step 2: Call backend to create PaymentIntent
     final response = await http.post(
       Uri.parse('${ApiConfig.baseUrl}/topUp/init'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'amountInSen': amountInCents, 'currency': 'myr', 'userId': 152}),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'amountInSen': amountInCents,
+        'currency': 'myr',
+        'userId': userId,
+      }),
     );
-    debugPrint("RAW RESPONSE: ${response.body}");
 
-    print("Backend response raw: ${response.body}");
-   
+    print('TOPUP /init status: ${response.statusCode}');
+    print('TOPUP /init body: ${response.body}');
 
-    final json = jsonDecode(response.body);
-    debugPrint("DECODED JSON: $json");
-    debugPrint("clientSecret key exists? ${json.containsKey('clientSecret')}");
-    debugPrint("paymentIntentClientSecret key exists? ${json.containsKey('paymentIntentClientSecret')}");
+    if (response.statusCode == 401) {
+      throw Exception('Unauthorized. Please log in again.');
+    }
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final err = jsonDecode(response.body);
+      throw Exception('Server error: ${err['message'] ?? response.body}');
+    }
 
-    final clientSecret = json['clientSecret'] ?? json['client_secret'];
-    final paymentIntentId = json['paymentIntentId'] ?? json['payment_intent_id'];
+    final data = jsonDecode(response.body);
+    final clientSecret = data['clientSecret'] ?? data['client_secret'];
+    final paymentIntentId =
+        data['paymentIntentId'] ?? data['payment_intent_id'];
 
-    // 2. Present payment sheet
+    if (clientSecret == null || (clientSecret as String).isEmpty) {
+      throw Exception('Backend did not return a valid clientSecret');
+    }
+
+    // 💳 Step 3: Initialize and show Stripe PaymentSheet
     await Stripe.instance.initPaymentSheet(
       paymentSheetParameters: SetupPaymentSheetParameters(
         paymentIntentClientSecret: clientSecret,
@@ -83,9 +140,7 @@ class _TopUpPageState extends State<TopUpPage> {
 
     await Stripe.instance.presentPaymentSheet();
 
-    
-
-    // 3. Navigate to success screen
+    // ✅ Step 4: Navigate on success
     context.pushNamed(
       RouteNames.topUpSuccess,
       extra: {
@@ -94,21 +149,33 @@ class _TopUpPageState extends State<TopUpPage> {
       },
     );
   } catch (e) {
-    print('Stripe error: $e');
+    print('TopUp Error: $e');
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Payment failed: ${e.toString()}')),
+      SnackBar(
+        content: Text(e.toString().replaceFirst('Exception: ', '')),
+        backgroundColor: Colors.redAccent,
+      ),
     );
   }
 }
 
   @override
   Widget build(BuildContext context) {
+    const primaryColor = Color(0xFF102520);
+    const accentColor = Color(0xFFB2DD62);
+
     return Scaffold(
-      backgroundColor: const Color(0xFFEFF2F1),
+      backgroundColor: primaryColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0E2F24),
+        backgroundColor: primaryColor,
         elevation: 0,
-        title: const Text('Top Up', style: TextStyle(color: Color(0xFFB8E986))),
+        title: const Text(
+          'Top Up',
+          style: TextStyle(
+            color: accentColor,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
@@ -117,65 +184,107 @@ class _TopUpPageState extends State<TopUpPage> {
       ),
       body: Stack(
         children: [
+          // Background gradient for subtle depth
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFF102520), Color(0xFF1A3C31)],
+              ),
+            ),
+          ),
+
+          // Main content
           SingleChildScrollView(
-            physics: BouncingScrollPhysics(),
-            padding: const EdgeInsets.all(24.0),
+            padding: const EdgeInsets.fromLTRB(24, 40, 24, 160),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.08),
+                        blurRadius: 12,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      const Text(
+                        'Enter Top-Up Amount',
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: Colors.black87,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        _amount.isEmpty ? 'RM 0.00' : 'RM $_amount',
+                        style: const TextStyle(
+                          fontSize: 44,
+                          fontWeight: FontWeight.bold,
+                          color: primaryColor,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      balance == null
+                          ? const CircularProgressIndicator()
+                          : Text(
+                              'Current Balance: RM ${balance?.toStringAsFixed(2) ?? '0.00'}',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Colors.black54,
+                              ),
+                            ),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 40),
-                Center(
-                  child: Container(
-                    width: double.infinity,
-                    margin: const EdgeInsets.symmetric(horizontal: 16),
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
+                ElevatedButton(
+                  onPressed: _amount.isEmpty ? null : _onProceed,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: accentColor,
+                    disabledBackgroundColor: Colors.grey.shade400,
+                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 40),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
                     ),
-                    child: Column(
-                      children: [
-                        const Text(
-                          'Amount',
-                          style: TextStyle(fontSize: 20, color: Colors.black54),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          _amount.isEmpty ? '0.00' : _amount,
-                          style: const TextStyle(
-                            fontSize: 40,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Current Balance : RM ${balance.toStringAsFixed(2)}',
-                          style: const TextStyle(fontSize: 14, color: Colors.black45),
-                        ),
-                      ],
+                  ),
+                  child: const Text(
+                    'Proceed to Top-Up',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: primaryColor,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
-                const SizedBox(height: 150), // Space for keyboard
               ],
             ),
           ),
+
+          // Fixed bottom keyboard
           Align(
             alignment: Alignment.bottomCenter,
-            
-              child: CustomPinKeyboard(
-                onKeyTap: _onKeyTap,
-                onBackspace: _onBackspace,
-                onClear: _onClear,
-                isEnabled: _amount.isNotEmpty,
-                onProceed: _onProceed,
-                onBackspaceLongPress: _onClear,
-              ),
-            
+            child: CustomPinKeyboard(
+              onKeyTap: _onKeyTap,
+              onBackspace: _onBackspace,
+              onClear: _onClear,
+              isEnabled: _amount.isNotEmpty,
+              onProceed: _onProceed,
+              onBackspaceLongPress: _onClear,
+            ),
           ),
         ],
       ),
     );
   }
 }
-

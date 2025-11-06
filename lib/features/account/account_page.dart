@@ -17,10 +17,11 @@ class AccountPage extends StatefulWidget {
 }
 
 class _AccountPageState extends State<AccountPage> {
-  final String fullName = 'Kenneph Lee';
-  final String phone = '+60 12-345 6789';
-  final String email = 'kenneph@example.com';
-  final String userId = 'UID-9F2A-88C1';
+  String? fullName;
+  String? phone;
+  String? email;
+  String? userId;
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
   bool _pushNoti = true;
   bool _marketingNoti = false;
@@ -32,6 +33,26 @@ class _AccountPageState extends State<AccountPage> {
 
   void _onDevices(BuildContext context) {
     context.pushNamed(RouteNames.trustedDevices);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSecureData();
+  }
+
+  Future<void> _loadSecureData() async {
+    final name = await _secureStorage.read(key: 'user_name');
+    final ph = await _secureStorage.read(key: 'user_phone');
+    final em = await _secureStorage.read(key: 'user_email');
+    final id = await _secureStorage.read(key: 'user_id');
+
+    setState(() {
+      fullName = name ?? 'Guest User';
+      phone = ph ?? '+60 --- ----';
+      email = em ?? 'example@email.com';
+      userId = id ?? 'UID-XXXX-XXXX';
+    });
   }
 
   @override
@@ -109,17 +130,19 @@ class _AccountPageState extends State<AccountPage> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(fullName,
-                                        style: const TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.w800,
-                                            fontSize: 16)),
+                                    Text(
+                                      fullName ?? 'Loading...',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 16,
+                                      ),
+                                    ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      phone,
+                                      phone ?? '',
                                       style: TextStyle(
-                                          color:
-                                              Colors.white.withOpacity(.92)),
+                                          color: Colors.white.withOpacity(.92)),
                                     ),
                                   ],
                                 ),
@@ -160,22 +183,22 @@ class _AccountPageState extends State<AccountPage> {
                       _InfoTile(
                           icon: Icons.badge_rounded,
                           title: 'Full name',
-                          value: fullName,
+                          value: fullName ?? 'Loading...',
                           onTap: _onEditProfile),
                       _InfoTile(
                           icon: Icons.phone_rounded,
                           title: 'Phone',
-                          value: phone,
+                          value: phone ?? 'Loading...',
                           onTap: _onEditPhone),
                       _InfoTile(
                           icon: Icons.mail_rounded,
                           title: 'Email',
-                          value: email,
+                          value: email ?? 'Loading...',
                           onTap: _onEditEmail),
                       _InfoTile(
                         icon: Icons.fingerprint_rounded,
                         title: 'User ID',
-                        value: userId,
+                        value: userId ?? 'Loading...',
                         trailing: const Icon(Icons.copy_rounded, size: 18),
                         onTap: _copyUserId,
                       ),
@@ -200,6 +223,11 @@ class _AccountPageState extends State<AccountPage> {
                         title: 'Trusted devices',
                         subtitle: 'Manage signed-in phones & browsers',
                         onTap: () => _onDevices(context),
+                      ),
+                      _NavTile(
+                        icon: Icons.wallet_rounded,
+                        title: 'Emergency Wallet',
+                        onTap: () => context.pushNamed(RouteNames.emergencyWallet),
                       ),
                     ]),
 

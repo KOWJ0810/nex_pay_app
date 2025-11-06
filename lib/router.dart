@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:nex_pay_app/features/auth/security_fallback_page.dart';
 import 'package:nex_pay_app/features/onboarding/biometric_opt_in_page.dart';
 import 'package:nex_pay_app/features/onboarding/setup_security_questions_page.dart';
+import 'package:nex_pay_app/features/wallet/waiting_transaction_limit_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // ========= Auth & Onboarding =========
@@ -28,6 +29,23 @@ import 'package:nex_pay_app/features/dashboard/dashboard_page.dart';
 import 'package:nex_pay_app/features/account/account_page.dart';
 import 'package:nex_pay_app/features/account/trusted_devices_page.dart';
 import 'package:nex_pay_app/features/topup/top_up_success_page.dart';
+import 'package:nex_pay_app/features/topup/top_up_page.dart';
+import 'package:nex_pay_app/features/wallet/emergency_wallet_page.dart';
+import 'package:nex_pay_app/features/wallet/add_relationship_page.dart';
+import 'package:nex_pay_app/features/wallet/receiver_verification_page.dart';
+import 'package:nex_pay_app/features/wallet/sender_generate_code_page.dart';
+import 'package:nex_pay_app/features/transaction/transaction_history_page.dart';
+import 'package:nex_pay_app/features/wallet/receiver_generate_code_page.dart';
+import 'package:nex_pay_app/features/wallet/sender_verification_page.dart';
+import 'package:nex_pay_app/features/wallet/emerg_transaction_limit_page.dart';
+import 'package:nex_pay_app/features/wallet/receiver_success_page.dart';
+import 'package:nex_pay_app/features/wallet/sender_success_page.dart';
+import 'package:nex_pay_app/features/transfer/search_transfer_user_page.dart';
+import 'package:nex_pay_app/features/transfer/enter_amount_page.dart';
+import 'package:nex_pay_app/features/transfer/transfer_success_page.dart';
+import 'package:nex_pay_app/features/QrCode/receive_qr_code_page.dart';
+import 'package:nex_pay_app/features/QrCode/scan_qr_code_page.dart';
+
 
 class RouteNames {
   static const splash = 'splash';
@@ -54,7 +72,22 @@ class RouteNames {
   static const topUpSuccess = 'topup-success';
   static const takeover = 'takeover';
   static const securityFallback = 'security-fallback';
-
+  static const topUp = 'top-up';
+  static const emergencyWallet = 'emergency-wallet';
+  static const addRelationship = 'add-relationship';
+  static const receiverVerification = 'receiver-verification';
+  static const senderGenerateCode = 'sender-generate-code';
+  static const receiverGenerateCode = 'receiver-generate-code';
+  static const senderVerification = 'sender-verification';
+  static const setEmergencyTransactionLimit = 'set-emergency-transaction-limit';
+  static const waitingTransactionLimit = 'waiting-transaction-limit';
+  static const receiverSuccess = 'receiver-success';
+  static const senderSuccess = 'sender-success';
+  static const searchTransferUser = 'search-transfer-user';
+  static const enterAmount = 'enter-amount';
+  static const transferSuccess = 'transfer-success';
+  static const receiveQrCode = 'receive-qr-code';
+  static const scanQrCode = 'scan-qr-code';
 }
 
 
@@ -232,6 +265,180 @@ final GoRouter appRouter = GoRouter(
         final args = st.extra as SecurityFallbackArgs;
         return SecurityQuestionsFallbackPage(args: args);
       },
+    ),
+    GoRoute(
+      name: RouteNames.topUp,
+      path: '/top-up',
+      builder: (ctx, st) => const TopUpPage(),
+    ),
+    GoRoute(
+      name: RouteNames.emergencyWallet,
+      path: '/emergency-wallet',
+      builder: (ctx, st) => const EmergencyWalletPage(),
+    ),
+    GoRoute(
+      name: RouteNames.addRelationship,
+      path: '/add-relationship',
+      builder: (ctx, st) => const AddRelationshipPage(),
+    ),
+    GoRoute(
+      name: RouteNames.receiverVerification,
+      path: '/receiver-verification',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        return ReceiverVerificationPage(
+          phone: extras['phone'],
+          userId: extras['userId'] as int,
+          userName: extras['userName'],
+          pairingId: extras['pairingId'] as int,
+          status: extras['status'],
+        );
+      },
+    ),
+    GoRoute(
+      name: RouteNames.senderGenerateCode,
+      path: '/sender-generate-code',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        return SenderGenerateCodePage(
+          phone: extras['phone'],
+          userId: extras['userId'] as int,
+          userName: extras['userName'],
+          pairingId: extras['pairingId'] as int,
+          status: extras['status'],
+          firstCode: extras['firstCode'],
+        );
+      },
+    ),
+    GoRoute(
+      name: RouteNames.transactionHistory,
+      path: '/transaction-history',
+      pageBuilder: (ctx, st) => const NoTransitionPage(child: TransactionHistoryPage()),
+    ),
+    GoRoute(
+      name: RouteNames.receiverGenerateCode,
+      path: '/receiver-generate-code',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>?;
+        return ReceiverGenerateCodePage(
+          phone: extras?['phone'],
+          userId: extras?['userId'] as int?,
+          userName: extras?['userName'],
+          pairingId: extras?['pairingId'] as int?,
+          status: extras?['status'],
+          secondCode: extras?['secondCode'],
+        );
+      },
+    ),
+    GoRoute(
+      name: RouteNames.senderVerification,
+      path: '/sender-verification',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        return SenderVerificationPage(
+          phone: extras['phone'],
+          userId: extras['userId'] as int,
+          userName: extras['userName'],
+          pairingId: extras['pairingId'] as int,
+        );
+      },
+    ),
+    GoRoute(
+      name: RouteNames.setEmergencyTransactionLimit,
+      path: '/set-emergency-transaction-limit',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        return EmergTransactionLimitPage(
+          phone: extras['phone'],
+          userId: extras['userId'] as int,
+          userName: extras['userName'],
+          pairingId: extras['pairingId'] as int,
+        );
+      },
+    ),
+    GoRoute(
+      name: RouteNames.waitingTransactionLimit,
+      path: '/waiting-transaction-limit',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        return WaitingTransactionLimitPage(
+          pairingId: extras['pairingId'] as int,
+        );
+      },
+    ),
+    GoRoute(
+      name: RouteNames.receiverSuccess,
+      path: '/receiver-success',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        return ReceiverSuccessPage(
+          pairingId: extras['pairingId'] as int,
+          status: extras['status'],
+          maxTotalLimit: extras['maxTotalLimit'] as double,
+          perTxnCap: extras['perTxnCap'] as double,
+          dailyCap: extras['dailyCap'] as double,
+        );
+      },
+    ),
+    GoRoute(
+      name: RouteNames.senderSuccess,
+      path: '/sender-success',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        return SenderSuccessPage(
+          pairingId: extras['pairingId'] as int,
+          maxTotalLimit: extras['maxTotalLimit'] as double,
+          perTxnCap: extras['perTxnCap'] as double,
+          dailyCap: extras['dailyCap'] as double,
+        );
+      },
+    ),
+    GoRoute(
+      name: RouteNames.searchTransferUser,
+      path: '/search-transfer-user',
+      builder: (ctx, st) => const SearchTransferUserPage(),
+    ),
+    GoRoute(
+      name: RouteNames.enterAmount,
+      path: '/enter-amount',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        return EnterAmountPage(
+          userId: extras['user_id'] as int,
+          userName: extras['user_name'] as String,
+          phoneNum: extras['phoneNum'] as String,
+        );
+      },
+    ),
+    GoRoute(
+      name: RouteNames.transferSuccess,
+      path: '/transfer-success',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        return TransferSuccessPage(
+          transactionId: extras['transactionId'] as int,
+          transactionRefNum: extras['transactionRefNum'] as String,
+          amount: extras['amount'] as double,
+          fromUserId: extras['fromUserId'] as int,
+          toUserId: extras['toUserId'] as int,
+          timestamp: extras['timestamp'] as String,
+        );
+      },
+    ),
+    GoRoute(
+      name: RouteNames.receiveQrCode,
+      path: '/receive-qr-code',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        return ReceiveQrCodePage(
+          payload: extras['payload'] as String,
+        );
+      },
+    ),
+    GoRoute(
+      name: RouteNames.scanQrCode,
+      path: '/scan-qr-code',
+      builder: (ctx, st) => const ScanQrCodePage(),
     ),
   ],
 );
