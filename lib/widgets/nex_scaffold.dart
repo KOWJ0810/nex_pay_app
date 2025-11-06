@@ -22,11 +22,7 @@ class NexScaffold extends StatelessWidget {
         context.goNamed(RouteNames.home);      // ✅ by name
         break;
       case 1:
-        // TODO: register a route first, e.g. RouteNames.transactions
-        // context.goNamed(RouteNames.transactions);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Transactions page coming soon')),
-        );
+        context.goNamed(RouteNames.transactionHistory);  // ✅ by name
         break;
       case 2:
         // TODO: register a route first, e.g. RouteNames.paychat
@@ -43,9 +39,7 @@ class NexScaffold extends StatelessWidget {
 
   void _onScanTap(BuildContext context) {
     // Example: context.pushNamed(RouteNames.scan);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Open scanner…')),
-    );
+    context.pushNamed(RouteNames.scanQrCode);
   }
 
   @override
