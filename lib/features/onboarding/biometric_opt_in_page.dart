@@ -154,7 +154,7 @@ class _BiometricOptInPageState extends State<BiometricOptInPage>
     try {
       // try secure storage first
       String? userId = await _secure.read(key: 'user_id');
-      String? token = await _secure.read(key: 'auth_token');
+      String? token = await _secure.read(key: 'token');
 
       // fallback to SharedPreferences if missing
       if (userId == null || userId.isEmpty) {
