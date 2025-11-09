@@ -1,5 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:nex_pay_app/widgets/nex_scaffold.dart';
+import 'package:http/http.dart' as http;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:intl/intl.dart';
 
 class TransactionHistoryPage extends StatefulWidget {
   const TransactionHistoryPage({Key? key}) : super(key: key);
@@ -16,40 +20,48 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
 
   int _selectedSegment = 1; // 0 = Dashboard, 1 = History
 
-  final List<Map<String, dynamic>> transactions = [
-    {
-      'name': 'Aunty Mee',
-      'time': '2 hours ago',
-      'type': 'Payment',
-      'amount': -25.00,
-    },
-    {
-      'name': 'Kenneph',
-      'time': 'Yesterday',
-      'type': 'Received',
-      'amount': 150.50,
-    },
-    {
-      'name': 'Sia Wei Hang',
-      'time': '3 days ago',
-      'type': 'Payment',
-      'amount': -60.75,
-    },
-    {
-      'name': 'John Doe',
-      'time': '1 week ago',
-      'type': 'Received',
-      'amount': 200.00,
-    },
-    {
-      'name': 'Jane Smith',
-      'time': '2 weeks ago',
-      'type': 'Payment',
-      'amount': -100.00,
-    },
-  ];
+  List<dynamic> transactions = [];
+
+  bool isLoading = true;
 
   int _selectedBottomIndex = 1;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchTransactions();
+  }
+
+  Future<void> _fetchTransactions() async {
+    const storage = FlutterSecureStorage();
+    final token = await storage.read(key: 'token');
+
+    if (token == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Authorization token missing')),
+      );
+      return;
+    }
+
+    final response = await http.get(
+      Uri.parse('http://localhost:8080/api/transactions/history'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data['success'] == true) {
+        setState(() {
+          transactions = data['items'];
+          isLoading = false;
+        });
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to fetch transactions: ${response.statusCode}')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -155,83 +167,89 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
                 ),
               ),
               const SizedBox(height: 16),
-              // Transactions list
-              ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: transactions.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
-                itemBuilder: (context, index) {
-                  final tx = transactions[index];
-                  final amount = tx['amount'] as double;
-                  final isPositive = amount >= 0;
-                  return Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    padding: const EdgeInsets.all(12),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        CircleAvatar(
-                          radius: 24,
-                          backgroundColor: accentColor.withOpacity(0.2),
-                          child: Text(
-                            tx['name'][0],
-                            style: TextStyle(
-                              color: primaryColor,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 20,
+              if (isLoading)
+                const Center(child: CircularProgressIndicator())
+              else if (transactions.isEmpty)
+                const Center(child: Text('No transaction history available.'))
+              else
+                ListView.separated(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: transactions.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (context, index) {
+                    final tx = transactions[index];
+                    final amount = tx['amount'] as double;
+                    final isPositive = tx['role'] == 'RECEIVER';
+                    final counterpartyName = tx['counterpartyName'] ?? 'Unknown';
+                    final dateTime = tx['transactionDateTime'];
+                    final formattedTime = DateFormat('dd MMM yyyy, HH:mm').format(DateTime.parse(dateTime));
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      padding: const EdgeInsets.all(12),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          CircleAvatar(
+                            radius: 24,
+                            backgroundColor: accentColor.withOpacity(0.2),
+                            child: Text(
+                              counterpartyName[0],
+                              style: TextStyle(
+                                color: primaryColor,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 20,
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                tx['name'],
-                                style: TextStyle(
-                                  color: primaryColor,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 16,
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  counterpartyName,
+                                  style: TextStyle(
+                                    color: primaryColor,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 16,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${tx['time']} • ${tx['type']}',
-                                style: TextStyle(
-                                  color: primaryColor.withOpacity(0.6),
-                                  fontSize: 13,
+                                const SizedBox(height: 4),
+                                Text(
+                                  '$formattedTime • ${tx['action']}',
+                                  style: TextStyle(
+                                    color: primaryColor.withOpacity(0.6),
+                                    fontSize: 13,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                        Text(
-                          (isPositive ? '+ ' : '- ') +
-                              '\$${amount.abs().toStringAsFixed(2)}',
-                          style: TextStyle(
-                            color: isPositive ? Colors.green : Colors.red,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 16,
+                          Text(
+                            (isPositive ? '+ ' : '- ') + 'RM${amount.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              color: isPositive ? Colors.green : Colors.red,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 16,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
             ],
           ),
         ),
