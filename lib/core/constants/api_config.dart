@@ -13,5 +13,6 @@ class ApiConfig {
     //lkw wifi
     static const String baseUrl = "http://192.168.1.5:8080/api";
 
-  
+    //lkw hotspot
+    // static const String baseUrl = "http://172.20.10.6:8080/api";
 }

@@ -23,17 +23,8 @@ class _DashboardPageState extends State<DashboardPage> {
 
   String? userName;
   double? balance;
-  final List<_Tx> _transactions = <_Tx>[
-    _Tx(title: 'Starbucks Coffee', date: 'Today, 9:42 AM', amount: -18.50, tagColor: Colors.orange),
-    _Tx(title: 'Transfer from Lee', date: 'Yesterday, 7:10 PM', amount: 200.00, tagColor: Colors.green),
-    _Tx(title: 'Maxis Bill', date: '1 Jul, 2:15 PM', amount: -100.00, tagColor: Colors.blue),
-    _Tx(title: 'Stripe Top Up', date: '28 Jun, 5:21 PM', amount: 50.00, tagColor: Colors.purple),
-     _Tx(title: 'Stripe Top Up', date: '28 Jun, 5:21 PM', amount: 50.00, tagColor: Colors.purple),
-      _Tx(title: 'Stripe Top Up', date: '28 Jun, 5:21 PM', amount: 50.00, tagColor: Colors.purple),
-       _Tx(title: 'Stripe Top Up', date: '28 Jun, 5:21 PM', amount: 50.00, tagColor: Colors.purple),
-        _Tx(title: 'Stripe Top Up', date: '28 Jun, 5:21 PM', amount: 50.00, tagColor: Colors.purple),
-        
-  ];
+  List<Map<String, dynamic>> _transactions = [];
+  bool _isLoadingTx = true;
 
   bool _hideBalance = false;
   late final NumberFormat _rm = NumberFormat.currency(locale: 'ms_MY', symbol: 'RM ', decimalDigits: 2);
@@ -43,6 +34,46 @@ class _DashboardPageState extends State<DashboardPage> {
     super.initState();
     _loadPrefs();
     _loadSecureData();
+    _loadRecentTransactions();
+  }
+  Future<void> _loadRecentTransactions() async {
+    try {
+      final token = await _secureStorage.read(key: 'token');
+      if (token == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Authorization token not found. Please sign in again.')),
+        );
+        return;
+      }
+
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}/transactions/history'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true) {
+          final items = List<Map<String, dynamic>>.from(data['items']);
+          setState(() {
+            _transactions = items.take(5).toList();
+            _isLoadingTx = false;
+          });
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(data['message'] ?? 'Failed to load transactions.')),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Server error: ${response.statusCode}')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error loading transactions: $e')),
+      );
+    }
   }
   Future<void> _loadSecureData() async {
   try {
@@ -246,31 +277,51 @@ class _DashboardPageState extends State<DashboardPage> {
                       // Recent Transactions
                       const Text('Recent Transactions',
                           style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-                        const SizedBox(height: 6), // ↓ keep just a small gap
-
-                        // List inside the same scroll
-                        if (_transactions.isEmpty)
-                          _emptyTransactions(context)
-                        else
-                          ListView.separated(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            // ↓ remove default list padding so there’s no hidden top gap
-                            padding: EdgeInsets.zero,
-                            itemCount: _transactions.length,
-                            // ↓ this is the ONLY vertical spacing between items
-                            separatorBuilder: (_, __) => const SizedBox(height: 8),
-                            itemBuilder: (context, i) {
-                              final t = _transactions[i];
-                              return _txItem(
-                                context,
-                                title: t.title,
-                                date: t.date,
-                                amount: t.amount,
-                                tagColor: t.tagColor,
-                              );
-                            },
+                      const SizedBox(height: 6),
+                      if (_isLoadingTx)
+                        Center(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 24),
+                            child: CircularProgressIndicator(),
                           ),
+                        )
+                      else if (_transactions.isEmpty)
+                        _emptyTransactions(context)
+                      else
+                        ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          padding: EdgeInsets.zero,
+                          itemCount: _transactions.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 8),
+                          itemBuilder: (context, i) {
+                            final tx = _transactions[i];
+                            final isReceiver = tx['role'] == 'RECEIVER';
+                            final amountColor = isReceiver ? Colors.green[600] : Colors.red[600];
+                            final prefix = isReceiver ? '+' : '-';
+                            final amount = double.tryParse(tx['amount'].toString())?.toStringAsFixed(2) ?? '0.00';
+                            final name = tx['counterpartyName'] ?? 'Unknown';
+                            final dateTime = tx['transactionDateTime'] != null
+                                ? DateFormat('dd MMM yyyy, HH:mm').format(DateTime.parse(tx['transactionDateTime']))
+                                : '';
+                            return ListTile(
+                              leading: CircleAvatar(
+                                radius: 22,
+                                backgroundColor: isReceiver ? Colors.green.withOpacity(0.15) : Colors.red.withOpacity(0.15),
+                                child: Icon(
+                                  isReceiver ? Icons.call_received_rounded : Icons.call_made_rounded,
+                                  color: isReceiver ? Colors.green : Colors.red,
+                                ),
+                              ),
+                              title: Text(name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                              subtitle: Text(dateTime, style: TextStyle(color: Theme.of(context).hintColor)),
+                              trailing: Text(
+                                '$prefix RM$amount',
+                                style: TextStyle(color: amountColor, fontWeight: FontWeight.w700),
+                              ),
+                            );
+                          },
+                        ),
 
                       // keep clear of bottom bar & fab
                       SizedBox(height: 90 + bottomPad),

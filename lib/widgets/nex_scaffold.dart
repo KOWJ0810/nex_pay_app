@@ -19,20 +19,18 @@ class NexScaffold extends StatelessWidget {
     if (i == currentIndex) return;
     switch (i) {
       case 0:
-        context.goNamed(RouteNames.home);      // ✅ by name
+        context.goNamed(RouteNames.home);      // by name
         break;
       case 1:
-        context.goNamed(RouteNames.transactionHistory);  // ✅ by name
+        context.goNamed(RouteNames.transactionHistory);  // by name
         break;
       case 2:
         // TODO: register a route first, e.g. RouteNames.paychat
         // context.goNamed(RouteNames.paychat);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('PayChat page coming soon')),
-        );
+        context.goNamed(RouteNames.paychat); // temporary fallback
         break;
       case 3:
-        context.goNamed(RouteNames.account);   // ✅ by name (no leading slash)
+        context.goNamed(RouteNames.account);   // by name (no leading slash)
         break;
     }
   }

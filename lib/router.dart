@@ -45,6 +45,13 @@ import 'package:nex_pay_app/features/transfer/enter_amount_page.dart';
 import 'package:nex_pay_app/features/transfer/transfer_success_page.dart';
 import 'package:nex_pay_app/features/QrCode/receive_qr_code_page.dart';
 import 'package:nex_pay_app/features/QrCode/scan_qr_code_page.dart';
+import 'package:nex_pay_app/features/paychat/paychat_page.dart';
+import 'package:nex_pay_app/features/paychat/chatroom_page.dart';
+import 'package:nex_pay_app/features/schedulePayment/schedule_date_page.dart';
+import 'package:nex_pay_app/features/schedulePayment/schedule_amount_page.dart';
+import 'package:nex_pay_app/features/schedulePayment/schedule_confirm_page.dart';
+import 'package:nex_pay_app/features/schedulePayment/schedule_success_page.dart';
+import 'package:nex_pay_app/features/schedulePayment/all_schedule_page.dart';
 
 
 class RouteNames {
@@ -88,6 +95,13 @@ class RouteNames {
   static const transferSuccess = 'transfer-success';
   static const receiveQrCode = 'receive-qr-code';
   static const scanQrCode = 'scan-qr-code';
+  static const paychat = 'paychat';
+  static const chatroom = 'chatroom';
+  static const scheduleDate = 'schedule-date';
+  static const scheduleAmount = 'schedule-amount';
+  static const scheduleConfirm = 'schedule-confirm';
+  static const scheduleSuccess = 'schedule-success';
+  static const allSchedule = 'all-schedule';
 }
 
 
@@ -439,6 +453,93 @@ final GoRouter appRouter = GoRouter(
       name: RouteNames.scanQrCode,
       path: '/scan-qr-code',
       builder: (ctx, st) => const ScanQrCodePage(),
+    ),
+    // ===== PayChat (placeholder) =====
+    GoRoute(
+      name: RouteNames.paychat,
+      path: '/paychat',
+      pageBuilder: (ctx, st) => const NoTransitionPage(child: PayChatPage()),
+    ),
+    GoRoute(
+      name: RouteNames.chatroom,
+      path: '/chatroom',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        return ChatRoomPage(
+          userId: extras['user_id'] as int,
+          userName: extras['user_name'] as String,
+          chatroomId: extras['chatroom_id'] as int,
+        );
+      },
+    ),
+    GoRoute(
+      name: RouteNames.scheduleDate,
+      path: '/schedule-date',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        return ScheduleDatePage(
+          userId: extras['user_id'] as int,
+        );
+      },
+    ),
+    GoRoute(
+      name: RouteNames.scheduleAmount,
+      path: '/schedule-amount',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        return ScheduleAmountPage(
+          userId: extras['user_id'] as int,
+          userName: extras['user_name'] as String,
+          phoneNo: extras['phone_no'] as String,
+          startDate: DateTime.parse(extras['start_date'] as String),
+          frequency: extras['frequency'] as String,
+          endDate: extras['end_date'] != null
+      ? DateTime.parse(extras['end_date'] as String)
+      : null,
+        );
+      },
+    ),
+    GoRoute(
+      name: RouteNames.scheduleConfirm,
+      path: '/schedule-confirm',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        return ScheduleConfirmPage(
+          userId: extras['user_id'] as int,
+          userName: extras['user_name'] as String,
+          phoneNo: extras['phone_no'] as String,
+          startDate: extras['start_date'] as DateTime, 
+          frequency: extras['frequency'] as String,
+          amount: extras['amount'] as double,
+          endDate: extras['end_date'] as DateTime?,
+        );
+      },
+    ),
+    GoRoute(
+      name: RouteNames.scheduleSuccess,
+      path: '/schedule-success',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        return ScheduleSuccessPage(
+          userId: extras['user_id'] as int,
+          userName: extras['user_name'] as String,
+          phoneNo: extras['phone_no'] as String,
+          startDate: extras['start_date'] as DateTime,
+          frequency: extras['frequency'] as String,
+          amount: extras['amount'] as double,
+          endDate: extras['end_date'] as DateTime?,
+        );
+      },
+    ),
+    GoRoute(
+      name: RouteNames.allSchedule,
+      path: '/all-schedule',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        return AllSchedulePage(
+          userId: extras['user_id'] as int,
+        );
+      },
     ),
   ],
 );
