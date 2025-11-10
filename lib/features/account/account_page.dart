@@ -202,6 +202,18 @@ class _AccountPageState extends State<AccountPage> {
                         trailing: const Icon(Icons.copy_rounded, size: 18),
                         onTap: _copyUserId,
                       ),
+                      _InfoTile(
+                          icon: Icons.savings_rounded,
+                          title: 'Piggy Bank',
+                          value: 'Set your financial goals here',
+                          onTap: () => context.pushNamed(RouteNames.goalList),
+                      ),
+                      _InfoTile(
+                          icon: Icons.storefront_rounded,
+                          title: 'Merchant Account',
+                          value: 'Start your merchant journey',
+                          onTap: () => context.pushNamed(RouteNames.merchantRegisterLanding),
+                      ),
                     ]),
 
                     const SizedBox(height: 16),
