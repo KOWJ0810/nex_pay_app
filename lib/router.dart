@@ -52,7 +52,16 @@ import 'package:nex_pay_app/features/schedulePayment/schedule_amount_page.dart';
 import 'package:nex_pay_app/features/schedulePayment/schedule_confirm_page.dart';
 import 'package:nex_pay_app/features/schedulePayment/schedule_success_page.dart';
 import 'package:nex_pay_app/features/schedulePayment/all_schedule_page.dart';
-
+import 'package:nex_pay_app/features/piggyBank/goal_list_page.dart';
+import 'package:nex_pay_app/features/piggyBank/add_goal_page.dart';
+import 'package:nex_pay_app/features/piggyBank/goal_success_page.dart';
+import 'package:nex_pay_app/features/piggyBank/goal_detail_page.dart';
+import 'package:nex_pay_app/features/piggyBank/goal_save_money_page.dart';
+import 'package:nex_pay_app/features/piggyBank/save_money_success_page.dart';
+import 'package:nex_pay_app/features/piggyBank/goal_history_page.dart';
+import 'package:nex_pay_app/features/piggyBank/goal_claim_money_page.dart';
+import 'package:nex_pay_app/features/piggyBank/claim_money_success_page.dart';
+import 'package:nex_pay_app/features/merchantOnboarding/merchant_register_landing_page.dart';
 
 class RouteNames {
   static const splash = 'splash';
@@ -102,6 +111,16 @@ class RouteNames {
   static const scheduleConfirm = 'schedule-confirm';
   static const scheduleSuccess = 'schedule-success';
   static const allSchedule = 'all-schedule';
+  static const goalList = 'goal-list';
+  static const addGoal = 'add-goal';
+  static const goalSuccess = 'goal-success';
+  static const goalDetail = 'goal-detail';
+  static const goalSaveMoney = 'goal-save-money';
+  static const saveMoneySuccess = 'save-money-success';
+  static const goalHistory = 'goal-history';
+  static const goalClaimMoney = 'goal-claim-money';
+  static const claimMoneySuccess = 'claim-money-success';
+  static const merchantRegisterLanding = 'merchant-register-landing';
 }
 
 
@@ -541,8 +560,112 @@ final GoRouter appRouter = GoRouter(
         );
       },
     ),
+    // ===== Goal List (placeholder) =====
+    GoRoute(
+      name: RouteNames.goalList,
+      path: '/goal-list',
+      builder: (ctx, st) => const GoalListPage(),
+    ),
+    GoRoute(
+      name: RouteNames.addGoal,
+      path: '/add-goal',
+      builder: (ctx, st) => const AddGoalPage(),
+    ),
+    GoRoute(
+      name: RouteNames.goalSuccess,
+      path: '/goal-success',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        return GoalSuccessPage(
+          goalName: extras['goal_name'] as String,
+          targetAmount: extras['target_amount'] as double,
+          dueDate: DateTime.parse(extras['due_date'] as String),
+          allowEarlyWithdraw: extras['allow_early_withdraw'] as bool,
+          notes: extras['notes'] as String,
+        );
+      },
+    ),
+    GoRoute(
+      name: RouteNames.goalDetail,
+      path: '/goal-detail',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        return GoalDetailPage(
+          piggyBankId: extras['piggy_bank_id'] as int,
+          name: extras['name'] as String,
+          goalAmount: extras['goal_amount'] as double,
+          totalSaved: extras['total_saved'] as double,
+          targetAt: extras['target_at'] as String,
+          status: extras['status'] as String,
+          allowEarlyWithdraw: extras['allow_early_withdraw'] as bool,
+          reachedAt: extras['reached_at'] as String?,
+          createdAt: extras['created_at'] as String,
+          updatedAt: extras['updated_at'] as String,
+        );
+      },
+    ),
+    GoRoute(
+      name: RouteNames.goalSaveMoney,
+      path: '/goal-save-money',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        return GoalSaveMoneyPage(
+          piggyBankId: extras['piggy_bank_id'] as int,
+        );
+      },
+    ),
+    GoRoute(
+      name: RouteNames.saveMoneySuccess,
+      path: '/save-money-success',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        return SaveMoneySuccessPage(
+          piggyBankId: extras['piggy_bank_id'] as int,
+          amount: extras['amount'] as double,
+          reason: extras['reason'] as String?,
+        );
+      },
+    ),
+    GoRoute(
+      name: RouteNames.goalHistory,
+      path: '/goal-history',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        return GoalHistoryPage(
+          piggyBankId: extras['piggy_bank_id'] as int,
+        );
+      },
+    ),
+    GoRoute(
+      name: RouteNames.goalClaimMoney,
+      path: '/goal-claim-money',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        return GoalClaimMoneyPage(
+          piggyBankId: extras['piggy_bank_id'] as int,
+        );
+      },
+    ),
+    GoRoute(
+      name: RouteNames.claimMoneySuccess,
+      path: '/claim-money-success',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        return ClaimMoneySuccessPage(
+          piggyBankId: extras['piggy_bank_id'] as int,
+          amount: extras['amount'] as double,
+          reason: extras['reason'] as String?,
+        );
+      },
+    ),
+    GoRoute(
+      name: RouteNames.merchantRegisterLanding,
+      path: '/merchant-register-landing',
+      builder: (ctx, st) => const MerchantRegisterLandingPage(),
+    ),
   ],
 );
+
 
 /// Splash decides ONCE where to go based on flags.
 /// This will NOT interfere with the rest of the onboarding navigation.
