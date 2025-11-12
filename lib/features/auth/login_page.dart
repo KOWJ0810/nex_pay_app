@@ -64,7 +64,7 @@ class _LoginPageState extends State<LoginPage> {
       errorMessage = '';
     });
 
-    bool loginSuccess = false; // we'll flip this once we navigate
+    bool navigated = false;
 
     Future<String> _ensureDeviceId() async {
       final prefs = await SharedPreferences.getInstance();
@@ -72,9 +72,9 @@ class _LoginPageState extends State<LoginPage> {
       if (id == null || id.isEmpty) {
         id = const Uuid().v4();
         await prefs.setString('device_id', id);
-        print('[login] Generated new device_id: $id');
+        debugPrint('[login] Generated new device_id: $id');
       } else {
-        print('[login] Existing device_id: $id');
+        debugPrint('[login] Existing device_id: $id');
       }
       return id;
     }
@@ -95,7 +95,7 @@ class _LoginPageState extends State<LoginPage> {
         if (deviceName.isEmpty) deviceName = 'Android Device';
       }
 
-      print('[login] Device info: $deviceName ($platform)');
+      debugPrint('[login] Device info: $deviceName ($platform)');
       return {
         'deviceName': deviceName,
         'platform': platform,
@@ -111,8 +111,8 @@ class _LoginPageState extends State<LoginPage> {
     }) async {
       try {
         final url = Uri.parse('${ApiConfig.baseUrl}/users/registerDevice');
-        print('[login] -> POST $url');
-        print('[login] body registerDevice: {userId:$userId, deviceId:$deviceId, name:$deviceName, platform:$platform}');
+        debugPrint('[login] -> POST $url');
+        debugPrint('[login] body registerDevice: {userId:$userId, deviceId:$deviceId, name:$deviceName, platform:$platform}');
 
         final response = await http.post(
           url,
@@ -129,10 +129,10 @@ class _LoginPageState extends State<LoginPage> {
           }),
         );
 
-        print('[login] registerDevice status: ${response.statusCode} body: ${response.body}');
+        debugPrint('[login] registerDevice status: ${response.statusCode} body: ${response.body}');
         return response.statusCode == 200;
       } catch (e) {
-        print('[login] registerDevice exception: $e');
+        debugPrint('[login] registerDevice exception: $e');
         return false;
       }
     }
@@ -140,7 +140,7 @@ class _LoginPageState extends State<LoginPage> {
     try {
       // 1) login
       final loginUrl = Uri.parse('${ApiConfig.baseUrl}/users/login');
-      print('[login] -> POST $loginUrl');
+      debugPrint('[login] -> POST $loginUrl');
       final loginRes = await http.post(
         loginUrl,
         headers: {'Content-Type': 'application/json'},
@@ -149,7 +149,7 @@ class _LoginPageState extends State<LoginPage> {
           'account_pin_num': pin,
         }),
       );
-      print('[login] login status: ${loginRes.statusCode} body: ${loginRes.body}');
+      debugPrint('[login] login status: ${loginRes.statusCode} body: ${loginRes.body}');
 
       if (loginRes.statusCode != 200) {
         if (!mounted) return;
@@ -159,25 +159,24 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
 
-      final loginData = jsonDecode(loginRes.body);
-
+      final loginData = jsonDecode(loginRes.body) as Map<String, dynamic>;
       final bool loggedInOK = loginData['success'] == true;
-      final token = loginData['token']?.toString() ?? '';
-      final userObj = loginData['user'] ?? {};
+      final token = (loginData['token'] ?? '').toString();
+      final userObj = (loginData['user'] ?? {}) as Map<String, dynamic>;
 
       final int backendUserId = (userObj['user_id'] is int)
           ? userObj['user_id']
           : int.tryParse('${userObj['user_id']}') ?? 0;
 
-      final backendPhone = userObj['phoneNum']?.toString() ?? phone;
-      final backendEmail = userObj['email']?.toString() ?? '';
-      final backendName = userObj['user_name']?.toString() ?? '';
-      final backendStatus = userObj['user_status']?.toString() ?? '';
+      final backendPhone = (userObj['phoneNum'] ?? phone).toString();
+      final backendEmail = (userObj['email'] ?? '').toString();
+      final backendName = (userObj['user_name'] ?? '').toString();
+      final backendStatus = (userObj['user_status'] ?? '').toString();
 
-      print('[login] loggedInOK: $loggedInOK');
-      print('[login] backendUserId: $backendUserId');
-      print('[login] token: $token');
-      print('[login] user_status: $backendStatus');
+      debugPrint('[login] loggedInOK: $loggedInOK');
+      debugPrint('[login] backendUserId: $backendUserId');
+      debugPrint('[login] token: $token');
+      debugPrint('[login] user_status: $backendStatus');
 
       if (!loggedInOK || token.isEmpty || backendUserId == 0) {
         if (!mounted) return;
@@ -187,7 +186,7 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
 
-      // 🔐 persist sensitive session to secure storage (instead of SharedPreferences)
+      // 2) persist sensitive session to secure storage
       await _secure.write(key: 'token', value: token);
       await _secure.write(key: 'user_id', value: '$backendUserId');
       await _secure.write(key: 'user_phone', value: backendPhone);
@@ -195,13 +194,36 @@ class _LoginPageState extends State<LoginPage> {
       await _secure.write(key: 'user_name', value: backendName);
       await _secure.write(key: 'user_status', value: backendStatus);
 
-      // 2) ensure deviceId (non-sensitive, keep in prefs)
-      final localDeviceId = await _ensureDeviceId();
-      final prefs = await SharedPreferences.getInstance();
+      // 🔐 Also persist creds for AppLockGate silent login (biometric unlock):
+      await _secure.write(key: 'phone_number', value: phone);
+      await _secure.write(key: 'password', value: pin); // your PIN-as-password
 
-      // 3) checkDevice (authorized)
+      // 3) Decide biometric opt-in routing BEFORE device checks
+      final prefs = await SharedPreferences.getInstance();
+      final bool? localBiometric = prefs.getBool('biometric_enabled');
+      final bool? serverBiometric =
+          (userObj['biometric_enabled'] is bool) ? userObj['biometric_enabled'] as bool : null;
+
+      // If server provided, mirror to local for consistency
+      if (serverBiometric != null) {
+        await prefs.setBool('biometric_enabled', serverBiometric);
+      }
+
+      final hasChosenBiometric = (serverBiometric != null) || (localBiometric != null);
+      if (!hasChosenBiometric) {
+        // Keep the session saved, then go to opt-in
+        if (!mounted) return;
+        context.goNamed(RouteNames.enableBiometric);
+        navigated = true;
+        return;
+      }
+
+      // 4) Device trust checks (same as before)
+      final localDeviceId = await _ensureDeviceId();
+
+      // If user chose NOT to enable biometric, we still go through device trust & home
       final checkDeviceUrl = Uri.parse('${ApiConfig.baseUrl}/users/checkDevice');
-      print('[login] -> POST $checkDeviceUrl with phoneNum=$phone deviceId=$localDeviceId');
+      debugPrint('[login] -> POST $checkDeviceUrl with phoneNum=$phone deviceId=$localDeviceId');
 
       final checkDeviceRes = await http.post(
         checkDeviceUrl,
@@ -215,48 +237,24 @@ class _LoginPageState extends State<LoginPage> {
         }),
       );
 
-      print('[login] checkDevice status: ${checkDeviceRes.statusCode} body: ${checkDeviceRes.body}');
+      debugPrint('[login] checkDevice status: ${checkDeviceRes.statusCode} body: ${checkDeviceRes.body}');
 
-      // A) trusted already
+      // A) trusted
       if (checkDeviceRes.statusCode == 200) {
-        final deviceData = jsonDecode(checkDeviceRes.body);
+        await prefs.setBool('is_logged_in', true);
+        await prefs.setString('device_id', localDeviceId);
 
-        if (deviceData['deviceStatus'] == 'trusted') {
-          await prefs.setBool('is_logged_in', true);
-          await prefs.setString('device_id', localDeviceId);
-
-          loginSuccess = true;
-          if (!mounted) return;
-          context.goNamed(RouteNames.home);
-          return;
-        } else {
-          if (!mounted) return;
-          setState(() {
-            errorMessage = 'Unexpected device status: ${deviceData['deviceStatus']}.';
-          });
-          return;
-        }
+        if (!mounted) return;
+        context.goNamed(RouteNames.home);
+        navigated = true;
+        return;
       }
 
       // B) need register (404)
       if (checkDeviceRes.statusCode == 404) {
-        final checkBody = jsonDecode(checkDeviceRes.body);
-
-        final int userIdFromCheck = (checkBody['userId'] is int)
-            ? checkBody['userId']
-            : int.tryParse('${checkBody['userId']}') ?? backendUserId;
-
-        if (userIdFromCheck == 0) {
-          if (!mounted) return;
-          setState(() {
-            errorMessage = 'Unable to determine user for device registration';
-          });
-          return;
-        }
-
         final info = await _getDeviceInfo();
         final registeredOK = await _registerDevice(
-          userId: userIdFromCheck,
+          userId: backendUserId,
           deviceId: localDeviceId,
           deviceName: info['deviceName']!,
           platform: info['platform']!,
@@ -274,38 +272,23 @@ class _LoginPageState extends State<LoginPage> {
         await prefs.setBool('is_logged_in', true);
         await prefs.setString('device_id', localDeviceId);
 
-        loginSuccess = true;
         if (!mounted) return;
         context.goNamed(RouteNames.home);
+        navigated = true;
         return;
       }
 
       // C) takeover (401)
       if (checkDeviceRes.statusCode == 401) {
-        final checkBody = jsonDecode(checkDeviceRes.body);
-
-        final int takeoverUserId = (checkBody['userId'] is int)
-            ? checkBody['userId']
-            : int.tryParse('${checkBody['userId']}') ?? backendUserId;
-
-        if (takeoverUserId == 0) {
-          if (!mounted) return;
-          setState(() {
-            errorMessage = 'Unable to determine user for device takeover';
-          });
-          return;
-        }
-
         await prefs.setBool('is_logged_in', false);
         await prefs.setString('device_id', localDeviceId);
 
-        loginSuccess = true;
         if (!mounted) return;
-
         context.pushNamed(
           RouteNames.takeover,
-          extra: TakeoverArgs(phoneNum: phone, userId: takeoverUserId),
+          extra: TakeoverArgs(phoneNum: phone, userId: backendUserId),
         );
+        navigated = true;
         return;
       }
 
@@ -325,20 +308,14 @@ class _LoginPageState extends State<LoginPage> {
       });
       return;
     } catch (e) {
-      print('[login] CATCH exception: $e');
-
-      if (!loginSuccess && mounted) {
+      debugPrint('[login] CATCH exception: $e');
+      if (!navigated && mounted) {
         setState(() {
           errorMessage = 'Connection error. Please try again.';
         });
       }
-      return;
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -361,7 +338,6 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void _goRegister() {
-    // Assumes you have a named route for ContactInfoPage
     context.pushNamed(RouteNames.contactInfo);
   }
 

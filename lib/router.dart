@@ -123,9 +123,11 @@ class RouteNames {
   static const merchantRegisterLanding = 'merchant-register-landing';
 }
 
+final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
 
 final GoRouter appRouter = GoRouter(
+  navigatorKey: rootNavigatorKey,
   // Start here; Splash will immediately route to the proper place.
   initialLocation: '/splash',
 

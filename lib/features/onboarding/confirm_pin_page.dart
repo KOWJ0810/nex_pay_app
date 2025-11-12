@@ -148,6 +148,14 @@ class _ConfirmPinPageState extends State<ConfirmPinPage>
     return id;
   }
 
+  Future<void> _persistCredentialsForAutoLogin() async {
+    // Prefer a real password if your flow has one; otherwise fallback to PIN.
+    final password = RegistrationData.pin;
+
+    await _secure.write(key: 'phone_number', value: RegistrationData.phoneNum);
+    await _secure.write(key: 'password', value: password);
+  }
+
   /// Collect device name + platform (iOS/Android)
   Future<Map<String, String>> _getDeviceInfo() async {
     final plugin = DeviceInfoPlugin();
@@ -347,6 +355,8 @@ class _ConfirmPinPageState extends State<ConfirmPinPage>
           } else {
             debugPrint('[ConfirmPin] Missing token or userId — skip registerDevice');
           }
+
+          await _persistCredentialsForAutoLogin();
 
           if (!mounted) return;
           // 7) Go to biometric opt-in
