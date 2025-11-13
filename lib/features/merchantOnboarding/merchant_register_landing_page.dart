@@ -90,7 +90,7 @@ class MerchantRegisterLandingPage extends StatelessWidget {
                   width: double.infinity,
                   height: 55,
                   child: ElevatedButton(
-                    onPressed: () => context.pushNamed(RouteNames.home),
+                    onPressed: () => context.pushNamed(RouteNames.merchantSetupName),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: accentColor,
                       foregroundColor: primaryColor,
