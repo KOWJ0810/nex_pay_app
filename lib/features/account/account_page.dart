@@ -1,5 +1,6 @@
 // lib/pages/account_page.dart
 import 'dart:ui';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
@@ -8,6 +9,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants/colors.dart';
 import '../../widgets/nex_scaffold.dart';
 import '../../router.dart' show RouteNames;
+import 'package:http/http.dart' as http;
+import '../../core/constants/api_config.dart';
 
 class AccountPage extends StatefulWidget {
   const AccountPage({super.key});
@@ -202,18 +205,18 @@ class _AccountPageState extends State<AccountPage> {
                         trailing: const Icon(Icons.copy_rounded, size: 18),
                         onTap: _copyUserId,
                       ),
-                      _InfoTile(
-                          icon: Icons.savings_rounded,
-                          title: 'Piggy Bank',
-                          value: 'Set your financial goals here',
-                          onTap: () => context.pushNamed(RouteNames.goalList),
-                      ),
-                      _InfoTile(
-                          icon: Icons.storefront_rounded,
-                          title: 'Merchant Account',
-                          value: 'Start your merchant journey',
-                          onTap: () => context.pushNamed(RouteNames.merchantRegisterLanding),
-                      ),
+                    _InfoTile(
+                        icon: Icons.savings_rounded,
+                        title: 'Piggy Bank',
+                        value: 'Set your financial goals here',
+                        onTap: () => context.pushNamed(RouteNames.goalList),
+                    ),
+                    _InfoTile(
+                      icon: Icons.storefront_rounded,
+                      title: 'Merchant Account',
+                      value: 'Manage or register your merchant account',
+                      onTap: _handleMerchantAccount,
+                    ),
                     ]),
 
                     const SizedBox(height: 16),
@@ -386,6 +389,56 @@ class _AccountPageState extends State<AccountPage> {
   void _toast(String msg) {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  Future<void> _handleMerchantAccount() async {
+    final token = await _secureStorage.read(key: 'token');
+
+    if (token == null) {
+      _toast('Session expired. Please log in again.');
+      return;
+    }
+
+    try {
+      _toast('Checking merchant account...');
+      final res = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}/merchants/user'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (res.statusCode == 200) {
+        final jsonRes = jsonDecode(res.body);
+        if (jsonRes['success'] == true && jsonRes['data'] != null) {
+          final merchant = jsonRes['data'];
+          final status = merchant['status'] ?? '';
+
+          if (status == 'PENDING_VERIFICATION') {
+            context.goNamed(RouteNames.merchantPendingApprove);
+          } else if (status == 'ACTIVE') {
+            context.goNamed(RouteNames.merchantDashboard);
+          } else {
+            context.goNamed(RouteNames.merchantRegisterLanding);
+          }
+        } else {
+          context.goNamed(RouteNames.merchantRegisterLanding);
+        }
+      }
+      else if (res.statusCode == 404) {
+        final jsonRes = jsonDecode(res.body);
+        if (jsonRes['success'] == false) {
+          context.goNamed(RouteNames.merchantRegisterLanding);
+          return;
+        }
+      }
+      else {
+        _toast('Server error: ${res.statusCode}');
+      }
+    } catch (e) {
+      _toast('Error: $e');
+    }
   }
 }
 

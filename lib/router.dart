@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:nex_pay_app/features/auth/security_fallback_page.dart';
 import 'package:nex_pay_app/features/onboarding/biometric_opt_in_page.dart';
 import 'package:nex_pay_app/features/onboarding/setup_security_questions_page.dart';
+import 'package:nex_pay_app/features/outlet/merchant_add_staff_page.dart';
 import 'package:nex_pay_app/features/wallet/waiting_transaction_limit_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -62,6 +63,21 @@ import 'package:nex_pay_app/features/piggyBank/goal_history_page.dart';
 import 'package:nex_pay_app/features/piggyBank/goal_claim_money_page.dart';
 import 'package:nex_pay_app/features/piggyBank/claim_money_success_page.dart';
 import 'package:nex_pay_app/features/merchantOnboarding/merchant_register_landing_page.dart';
+import 'package:nex_pay_app/features/merchantOnboarding/merchant_setup_name_page.dart';
+import 'package:nex_pay_app/features/merchantOnboarding/merchant_setup_detail_page.dart';
+import 'package:nex_pay_app/features/merchantOnboarding/merchant_setup_pin_page.dart';
+import 'package:nex_pay_app/features/merchantOnboarding/merchant_confirm_pin_page.dart';
+import 'package:nex_pay_app/features/merchantOnboarding/merchant_pending_approve_page.dart';
+import 'package:nex_pay_app/features/dashboard/merchant_dashboard_page.dart';
+import 'package:nex_pay_app/features/account/merchant_account_page.dart';
+import 'package:nex_pay_app/features/transfer/merchant_enter_pay_amount_page.dart';
+import 'package:nex_pay_app/features/QrCode/merchant_scan_qr_code_page.dart';
+import 'package:nex_pay_app/features/outlet/merchant_outlet_list_page.dart';
+import 'package:nex_pay_app/features/outlet/merchant_add_outlet_page.dart';
+import 'package:nex_pay_app/features/outlet/merchant_outlet_detail_page.dart';
+import 'package:nex_pay_app/features/outlet/merchant_add_staff_page.dart';
+import 'package:nex_pay_app/features/QrCode/pay_qr_code_page.dart';
+import 'package:nex_pay_app/features/transfer/merchant_payment_success_page.dart';
 
 class RouteNames {
   static const splash = 'splash';
@@ -121,6 +137,21 @@ class RouteNames {
   static const goalClaimMoney = 'goal-claim-money';
   static const claimMoneySuccess = 'claim-money-success';
   static const merchantRegisterLanding = 'merchant-register-landing';
+  static const merchantSetupName = 'merchant-setup-name';
+  static const merchantSetupDetail = 'merchant-setup-detail';
+  static const merchantSetupPin = 'merchant-setup-pin';
+  static const merchantConfirmPin = 'merchant-confirm-pin';
+  static const merchantPendingApprove = 'merchant-pending-approve';
+  static const merchantDashboard = 'merchant-dashboard';
+  static const merchantAccount = 'merchant-account';
+  static const merchantEnterPayAmount = 'merchant-enter-pay-amount';
+  static const merchantScanQrCode = 'merchant-scan-qr-code';
+  static const merchantOutletList = 'merchant-outlet-list';
+  static const merchantAddOutlet = 'merchant-add-outlet';
+  static const merchantOutletDetail = 'merchant-outlet-detail';
+  static const merchantAddStaff = 'merchant-add-staff';
+  static const payQrCode = 'pay-qr-code';
+  static const merchantPaymentSuccess = 'merchant-payment-success';
 }
 
 
@@ -662,6 +693,117 @@ final GoRouter appRouter = GoRouter(
       name: RouteNames.merchantRegisterLanding,
       path: '/merchant-register-landing',
       builder: (ctx, st) => const MerchantRegisterLandingPage(),
+    ),
+    GoRoute(
+      name: RouteNames.merchantSetupName,
+      path: '/merchant-setup-name',
+      builder: (ctx, st) => const MerchantSetupNamePage(),
+    ),
+    GoRoute(
+      name: RouteNames.merchantSetupDetail,
+      path: '/merchant-setup-detail',
+      builder: (ctx, st) => const MerchantSetupDetailPage(),
+    ),
+    GoRoute(
+      name: RouteNames.merchantSetupPin,
+      path: '/merchant-setup-pin',
+      builder: (ctx, st) => const MerchantSetupPinPage(),
+    ),
+    GoRoute(
+      name: RouteNames.merchantConfirmPin,
+      path: '/merchant-confirm-pin',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        return MerchantConfirmPinPage(
+          pin: extras['pin'] as String,
+        );
+      },
+    ),
+    GoRoute(
+      name: RouteNames.merchantPendingApprove,
+      path: '/merchant-pending-approve',
+      builder: (ctx, st) => const MerchantPendingApprovePage(),
+    ),
+    GoRoute(
+      name: RouteNames.merchantDashboard,
+      path: '/merchant-dashboard',
+      pageBuilder: (ctx, st) => const NoTransitionPage(child: MerchantDashboardPage()),
+    ),
+    GoRoute(
+      name: RouteNames.merchantAccount,
+      path: '/merchant-account',
+      pageBuilder: (ctx, st) => const NoTransitionPage(child: MerchantAccountPage()),
+    ),
+    GoRoute(
+      name: RouteNames.merchantEnterPayAmount,
+      path: '/merchant-enter-pay-amount',
+      builder: (ctx, st) => const MerchantEnterPayAmountPage(),
+    ),
+    GoRoute(
+      name: RouteNames.merchantScanQrCode,
+      path: '/merchant-scan-qr-code',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        return MerchantScanQrCodePage(
+          amount: extras['amount'] as double,
+          note: extras['note'] as String?,
+        );
+      },
+    ),
+    GoRoute(
+      name: RouteNames.merchantOutletList,
+      path: '/merchant-outlet-list',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        final merchantId = extras['merchantId'] as int;
+        return MerchantOutletListPage(merchantId: merchantId);
+      },
+    ),
+    GoRoute(
+      name: RouteNames.merchantAddOutlet,
+      path: '/merchant-add-outlet',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        final merchantId = extras['merchantId'] as int;
+        return MerchantAddOutletPage(merchantId: merchantId);
+      },
+    ),
+    GoRoute(
+      name: RouteNames.merchantOutletDetail,
+      path: '/merchant-outlet-detail',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        final outletId = extras['outletId'] as int;
+        final merchantId = extras['merchantId'] as int;
+        return MerchantOutletDetailPage(merchantId: merchantId, outletId: outletId);
+      },
+    ),
+    GoRoute(
+      name: RouteNames.merchantAddStaff,
+      path: '/merchant-add-staff',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        final merchantId = extras['merchantId'] as int;
+        final outletId = extras['outletId'] as int;
+        return MerchantAddStaffPage(merchantId: merchantId, outletId: outletId);
+      },
+    ),
+    GoRoute(
+      name: RouteNames.payQrCode,
+      path: '/pay-qr-code',
+      builder: (ctx, st) => const PayQrCodePage(),
+    ),
+    GoRoute(
+      name: RouteNames.merchantPaymentSuccess,
+      path: '/merchant-payment-success',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        return MerchantPaymentSuccessPage(
+          transactionRefNum: extras['transactionRefNum'] as String,
+          amountCharged: extras['amountCharged'] as double,
+          payerUserId: extras['payerUserId'] as int,
+        );
+      },
     ),
   ],
 );

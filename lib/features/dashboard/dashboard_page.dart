@@ -263,7 +263,7 @@ class _DashboardPageState extends State<DashboardPage> {
                       Row(
                         children: [
                           Expanded(child: _ActionTile(icon: Icons.send_rounded, label: 'Send', onTap: () => context.pushNamed(RouteNames.searchTransferUser),)),
-                          Expanded(child: _ActionTile(icon: Icons.qr_code_scanner_rounded, label: 'Scan', onTap: () => context.pushNamed(RouteNames.scanQrCode),)),
+                          Expanded(child: _ActionTile(icon: Icons.attach_money_rounded, label: 'Pay', onTap: () => context.pushNamed(RouteNames.payQrCode),)),
                           Expanded(child: _ActionTile(
                             icon: Icons.request_page_rounded,
                             label: 'Request',

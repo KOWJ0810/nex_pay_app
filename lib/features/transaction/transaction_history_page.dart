@@ -4,6 +4,7 @@ import 'package:nex_pay_app/widgets/nex_scaffold.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:intl/intl.dart';
+import '../../core/constants/api_config.dart';
 
 class TransactionHistoryPage extends StatefulWidget {
   const TransactionHistoryPage({Key? key}) : super(key: key);
@@ -44,7 +45,7 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
     }
 
     final response = await http.get(
-      Uri.parse('http://localhost:8080/api/transactions/history'),
+      Uri.parse('${ApiConfig.baseUrl}/transactions/history'),
       headers: {'Authorization': 'Bearer $token'},
     );
 

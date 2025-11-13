@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../core/constants/colors.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nex_pay_app/router.dart';
+import '../../core/constants/api_config.dart';
 
 class GoalListPage extends StatefulWidget {
   const GoalListPage({super.key});
@@ -39,7 +40,7 @@ class _GoalListPageState extends State<GoalListPage> {
 
     try {
       final response = await http.get(
-        Uri.parse("http://localhost:8080/api/piggy-banks"),
+        Uri.parse("${ApiConfig.baseUrl}/piggy-banks"),
         headers: {"Authorization": "Bearer $token"},
       );
 
