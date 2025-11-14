@@ -21,7 +21,7 @@ class NexMerchantScaffold extends StatelessWidget {
         context.goNamed(RouteNames.merchantDashboard);
         break;
       case 1:
-        context.goNamed(RouteNames.home);
+        context.goNamed(RouteNames.merchantTransactionHistory);
         break;
       case 2:
         context.goNamed(RouteNames.merchantAccount);
@@ -33,7 +33,7 @@ class NexMerchantScaffold extends StatelessWidget {
   }
 
   void _onScanTap(BuildContext context) {
-    context.pushNamed(RouteNames.merchantEnterPayAmount);
+    context.pushNamed(RouteNames.scanOutletList);
   }
 
   @override

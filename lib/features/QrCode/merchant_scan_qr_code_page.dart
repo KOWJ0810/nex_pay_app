@@ -11,10 +11,12 @@ import '../../core/constants/api_config.dart';
 class MerchantScanQrCodePage extends StatefulWidget {
   final double amount;
   final String? note;
+  final int outletId;
 
   const MerchantScanQrCodePage({
     super.key,
     required this.amount,
+    required this.outletId,
     this.note,
   });
 
@@ -49,6 +51,7 @@ class _MerchantScanQrCodePageState extends State<MerchantScanQrCodePage> {
       "qrPayload": code,
       "amount": widget.amount,
       "note": widget.note ?? "",
+      "outletId": widget.outletId,
     };
 
     try {
@@ -70,7 +73,7 @@ class _MerchantScanQrCodePageState extends State<MerchantScanQrCodePage> {
             RouteNames.merchantPaymentSuccess,
             extra: {
               'transactionRefNum': data['transactionRefNum'],
-              'amountCharged': data['amountCharged'],
+              'amountCharged': data['amount'],
               'payerUserId': data['payerUserId'],
             },
           );

@@ -1,5 +1,3 @@
-
-
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -10,12 +8,10 @@ import '../../core/constants/colors.dart';
 import '../../router.dart';
 
 class MerchantAddStaffPage extends StatefulWidget {
-  final int merchantId;
   final int outletId;
 
   const MerchantAddStaffPage({
     Key? key,
-    required this.merchantId,
     required this.outletId,
   }) : super(key: key);
 
@@ -29,6 +25,7 @@ class _MerchantAddStaffPageState extends State<MerchantAddStaffPage> {
   bool isLoading = false;
   bool userSelected = false;
   String? errorMessage;
+  String? selectedRole;
 
   @override
   Widget build(BuildContext context) {
@@ -184,11 +181,46 @@ class _MerchantAddStaffPageState extends State<MerchantAddStaffPage> {
                   ),
                 ),
               ),
+
+              const SizedBox(height: 20),
+              const Text(
+                "Select Role",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: primaryColor,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.black26),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: selectedRole,
+                    hint: const Text("Choose role"),
+                    items: const [
+                      DropdownMenuItem(value: "CASHIER", child: Text("Cashier")),
+                      DropdownMenuItem(value: "MANAGER", child: Text("Manager")),
+                      DropdownMenuItem(value: "SUPERVISOR", child: Text("Supervisor")),
+                      DropdownMenuItem(value: "STAFF", child: Text("Staff")),
+                    ],
+                    onChanged: (value) {
+                      setState(() => selectedRole = value);
+                    },
+                  ),
+                ),
+              ),
+
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: userSelected ? _addStaff : null,
+                  onPressed: (userSelected && selectedRole != null) ? _addStaff : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: accentColor,
                     disabledBackgroundColor: Colors.grey.shade400,
@@ -260,11 +292,12 @@ class _MerchantAddStaffPageState extends State<MerchantAddStaffPage> {
 
     final body = {
       "userId": userData!['user_id'],
+      "accessRole": selectedRole,
     };
 
     try {
       final res = await http.post(
-        Uri.parse('${ApiConfig.baseUrl}/merchants/${widget.merchantId}/outlets/${widget.outletId}/staffs'),
+        Uri.parse('${ApiConfig.baseUrl}/merchants/outlets/${widget.outletId}/staff'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -275,10 +308,17 @@ class _MerchantAddStaffPageState extends State<MerchantAddStaffPage> {
       if (res.statusCode == 200) {
         final jsonRes = jsonDecode(res.body);
         if (jsonRes['success'] == true) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Staff added successfully!")),
+          final staff = jsonRes['data']['staff'][0];
+
+          context.pushNamed(
+            RouteNames.addStaffSuccess,
+            extra: {
+              'userId': staff['userId'],
+              'name': staff['name'],
+              'phone': staff['phone'],
+              'accessRole': staff['accessRole'],
+            },
           );
-          context.pop(true);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text("Failed: ${jsonRes['message'] ?? 'Unknown error'}")),

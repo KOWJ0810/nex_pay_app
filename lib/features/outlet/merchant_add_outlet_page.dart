@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../../core/constants/api_config.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/constants/colors.dart';
+import 'package:nex_pay_app/router.dart';
+
 
 class MerchantAddOutletPage extends StatefulWidget {
-  final int merchantId;
-  const MerchantAddOutletPage({Key? key, required this.merchantId}) : super(key: key);
+  const MerchantAddOutletPage({Key? key}) : super(key: key);
 
   @override
   State<MerchantAddOutletPage> createState() => _MerchantAddOutletPageState();
@@ -100,7 +106,7 @@ class _MerchantAddOutletPageState extends State<MerchantAddOutletPage> {
                         width: double.infinity,
                         height: 50,
                         child: ElevatedButton(
-                          onPressed: _isSubmitting ? null : () => _submitForm(widget.merchantId),
+                          onPressed: _isSubmitting ? null : _submitForm,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: accentColor,
                             shape: RoundedRectangleBorder(
@@ -135,20 +141,68 @@ class _MerchantAddOutletPageState extends State<MerchantAddOutletPage> {
     );
   }
 
-  Future<void> _submitForm(int? merchantId) async {
+  Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isSubmitting = true);
-    await Future.delayed(const Duration(seconds: 1)); // simulate API delay
 
-    setState(() => _isSubmitting = false);
+    try {
+      const storage = FlutterSecureStorage();
+      final token = await storage.read(key: 'token');
 
-    if (!mounted) return;
+      if (token == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Session expired. Please log in again.")),
+        );
+        setState(() => _isSubmitting = false);
+        return;
+      }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Outlet added successfully!')),
-    );
+      final body = {
+        "outletName": _nameController.text.trim(),
+        "outletAddress": _addressController.text.trim(),
+      };
 
-    Navigator.pop(context, true);
+      final res = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/merchants/outlets'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(body),
+      );
+
+      setState(() => _isSubmitting = false);
+
+      if (res.statusCode == 200) {
+        final jsonRes = jsonDecode(res.body);
+
+        if (jsonRes['success'] == true) {
+          final data = jsonRes['data'];
+
+          if (!mounted) return;
+
+          context.pushNamed(
+            RouteNames.addOutletSuccess,
+            extra: {
+              "outletName": data["outletName"],
+              "outletAddress": data["outletAddress"],
+              "dateCreated": data["dateCreated"],
+            },
+          );
+          return;
+        }
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to add outlet. Code: ${res.statusCode}")),
+      );
+
+    } catch (e) {
+      setState(() => _isSubmitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e")),
+      );
+    }
   }
 }

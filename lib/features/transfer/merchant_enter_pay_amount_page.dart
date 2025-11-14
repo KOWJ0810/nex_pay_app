@@ -4,7 +4,8 @@ import 'package:nex_pay_app/core/constants/colors.dart';
 import 'package:nex_pay_app/router.dart';
 
 class MerchantEnterPayAmountPage extends StatefulWidget {
-  const MerchantEnterPayAmountPage({super.key});
+  final int outletId;
+  const MerchantEnterPayAmountPage({super.key, required this.outletId});
 
   @override
   State<MerchantEnterPayAmountPage> createState() => _MerchantEnterPayAmountPageState();
@@ -35,6 +36,7 @@ class _MerchantEnterPayAmountPageState extends State<MerchantEnterPayAmountPage>
         extra: {
           'amount': double.parse(amountText),
           'note': noteText,
+          'outletId': widget.outletId,
         },
       );
     });
