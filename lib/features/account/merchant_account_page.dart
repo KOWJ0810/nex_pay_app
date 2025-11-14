@@ -207,9 +207,7 @@ class _MerchantAccountPageState extends State<MerchantAccountPage> {
                                 _NavTile(
                                   icon: Icons.store_rounded,
                                   title: 'Outlets',
-                                  onTap: () => context.pushNamed(RouteNames.merchantOutletList, extra: {
-                                    'merchantId': merchantData?['merchantId'] ?? 0,
-                                  }),
+                                  onTap: () => context.pushNamed(RouteNames.merchantOutletList),
                                 ),
                                 _NavTile(
                                   icon: Icons.receipt_long_rounded,

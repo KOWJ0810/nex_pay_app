@@ -78,6 +78,16 @@ import 'package:nex_pay_app/features/outlet/merchant_outlet_detail_page.dart';
 import 'package:nex_pay_app/features/outlet/merchant_add_staff_page.dart';
 import 'package:nex_pay_app/features/QrCode/pay_qr_code_page.dart';
 import 'package:nex_pay_app/features/transfer/merchant_payment_success_page.dart';
+import 'package:nex_pay_app/features/outlet/add_outlet_success_page.dart';
+import 'package:nex_pay_app/features/outlet/add_staff_success_page.dart';
+import 'package:nex_pay_app/features/outlet/edit_outlet_page.dart';
+import 'package:nex_pay_app/features/outlet/scan_outlet_list_page.dart';
+import 'package:nex_pay_app/features/transaction/merchant_transaction_history_page.dart';
+import 'package:nex_pay_app/features/staff/staff_outlet_list_page.dart';
+import 'package:nex_pay_app/features/staff/staff_dashboard_page.dart';
+import 'package:nex_pay_app/features/transaction/outlet_transaction_history_page.dart';
+import 'package:nex_pay_app/features/transaction/outlet_transaction_detail_page.dart';
+import 'package:nex_pay_app/features/transaction/merchant_transaction_detail_page.dart';
 
 class RouteNames {
   static const splash = 'splash';
@@ -152,6 +162,16 @@ class RouteNames {
   static const merchantAddStaff = 'merchant-add-staff';
   static const payQrCode = 'pay-qr-code';
   static const merchantPaymentSuccess = 'merchant-payment-success';
+  static const addOutletSuccess = 'add-outlet-success';
+  static const addStaffSuccess = 'add-staff-success';
+  static const editOutletPage = 'edit-outlet-page';
+  static const scanOutletList = 'scan-outlet-list';
+  static const merchantTransactionHistory = 'merchant-transaction-history';
+  static const staffOutletList = 'staff-outlet-list';
+  static const staffDashboard = 'staff-dashboard';
+  static const outletTransactionHistory = 'outlet-transaction-history';
+  static const outletTransactionDetail = 'outlet-transaction-detail';
+  static const merchantTransactionDetail = 'merchant-transaction-detail';
 }
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -739,7 +759,12 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       name: RouteNames.merchantEnterPayAmount,
       path: '/merchant-enter-pay-amount',
-      builder: (ctx, st) => const MerchantEnterPayAmountPage(),
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        return MerchantEnterPayAmountPage(
+          outletId: extras['outletId'] as int,
+        );
+      },
     ),
     GoRoute(
       name: RouteNames.merchantScanQrCode,
@@ -749,6 +774,7 @@ final GoRouter appRouter = GoRouter(
         return MerchantScanQrCodePage(
           amount: extras['amount'] as double,
           note: extras['note'] as String?,
+          outletId: extras['outletId'] as int,
         );
       },
     ),
@@ -756,18 +782,14 @@ final GoRouter appRouter = GoRouter(
       name: RouteNames.merchantOutletList,
       path: '/merchant-outlet-list',
       builder: (ctx, st) {
-        final extras = st.extra as Map<String, dynamic>;
-        final merchantId = extras['merchantId'] as int;
-        return MerchantOutletListPage(merchantId: merchantId);
+        return const MerchantOutletListPage();
       },
     ),
     GoRoute(
       name: RouteNames.merchantAddOutlet,
       path: '/merchant-add-outlet',
       builder: (ctx, st) {
-        final extras = st.extra as Map<String, dynamic>;
-        final merchantId = extras['merchantId'] as int;
-        return MerchantAddOutletPage(merchantId: merchantId);
+        return MerchantAddOutletPage();
       },
     ),
     GoRoute(
@@ -776,8 +798,7 @@ final GoRouter appRouter = GoRouter(
       builder: (ctx, st) {
         final extras = st.extra as Map<String, dynamic>;
         final outletId = extras['outletId'] as int;
-        final merchantId = extras['merchantId'] as int;
-        return MerchantOutletDetailPage(merchantId: merchantId, outletId: outletId);
+        return MerchantOutletDetailPage(outletId: outletId);
       },
     ),
     GoRoute(
@@ -785,9 +806,8 @@ final GoRouter appRouter = GoRouter(
       path: '/merchant-add-staff',
       builder: (ctx, st) {
         final extras = st.extra as Map<String, dynamic>;
-        final merchantId = extras['merchantId'] as int;
         final outletId = extras['outletId'] as int;
-        return MerchantAddStaffPage(merchantId: merchantId, outletId: outletId);
+        return MerchantAddStaffPage(outletId: outletId);
       },
     ),
     GoRoute(
@@ -805,6 +825,101 @@ final GoRouter appRouter = GoRouter(
           amountCharged: extras['amountCharged'] as double,
           payerUserId: extras['payerUserId'] as int,
         );
+      },
+    ),
+    GoRoute(
+      name: RouteNames.addOutletSuccess,
+      path: '/add-outlet-success',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        return AddOutletSuccessPage(
+          outletName: extras['outletName'] as String,
+          outletAddress: extras['outletAddress'] as String,
+          dateCreated: extras['dateCreated'] as String,
+        );
+      },
+    ),
+    GoRoute(
+      name: RouteNames.addStaffSuccess,
+      path: '/add-staff-success',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        return AddStaffSuccessPage(
+          userId: extras['userId'] as int,
+          name: extras['name'] as String,
+          phone: extras['phone'] as String,
+          accessRole: extras['accessRole'] as String,
+        );
+      },
+    ),
+    GoRoute(
+      name: RouteNames.editOutletPage,
+      path: '/edit-outlet-page',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        return EditOutletPage(
+          outletId: extras['outletId'] as int,
+          initialName: extras['outletName'] as String,
+          initialAddress: extras['outletAddress'] as String,
+        );
+      },
+    ),
+    GoRoute(
+      name: RouteNames.scanOutletList,
+      path: '/scan-outlet-list',
+      builder: (ctx, st) {
+        return const ScanOutletListPage();
+      },
+    ),
+    GoRoute(
+      name: RouteNames.merchantTransactionHistory,
+      path: '/merchant-transaction-history',
+      builder: (ctx, st) {
+        return const MerchantTransactionHistoryPage();
+      },
+    ),
+    GoRoute(
+      name: RouteNames.staffOutletList,
+      path: '/staff-outlet-list',
+      builder: (ctx, st) {
+        return const StaffOutletListPage();
+      },
+    ),
+    GoRoute(
+      name: RouteNames.staffDashboard,
+      path: '/staff-dashboard',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        return StaffDashboardPage(
+          outletId: extras['outletId'] as int,
+        );
+      },
+    ),
+    GoRoute(
+      name: RouteNames.outletTransactionHistory,
+      path: '/outlet-transaction-history',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        final outletId = extras['outletId'] as int;
+        return OutletTransactionHistoryPage(outletId: outletId);
+      },
+    ),
+    GoRoute(
+      name: RouteNames.outletTransactionDetail,
+      path: '/outlet-transaction-detail',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        final transactionId = extras['transactionId'] as int;
+        return OutletTransactionDetailPage(transactionId: transactionId);
+      },
+    ),
+    GoRoute(
+      name: RouteNames.merchantTransactionDetail,
+      path: '/merchant-transaction-detail',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        final transactionId = extras['transactionId'] as int;
+        return MerchantTransactionDetailPage(transactionId: transactionId);
       },
     ),
   ],

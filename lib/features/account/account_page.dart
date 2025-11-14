@@ -30,6 +30,8 @@ class _AccountPageState extends State<AccountPage> {
   bool _marketingNoti = false;
   bool _biometrics = true;
 
+  bool _hasStaffAccount = false;
+
   static const double _extraFabClearance = 76;
   static const double _reservedBottomSpace =
       kBottomNavigationBarHeight + _extraFabClearance;
@@ -42,6 +44,7 @@ class _AccountPageState extends State<AccountPage> {
   void initState() {
     super.initState();
     _loadSecureData();
+    _checkStaffAccount();
   }
 
   Future<void> _loadSecureData() async {
@@ -56,6 +59,29 @@ class _AccountPageState extends State<AccountPage> {
       email = em ?? 'example@email.com';
       userId = id ?? 'UID-XXXX-XXXX';
     });
+  }
+
+  Future<void> _checkStaffAccount() async {
+    final token = await _secureStorage.read(key: 'token');
+    if (token == null) return;
+
+    try {
+      final res = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}/merchants/outlets/getOutletByStaff'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (res.statusCode == 200) {
+        final jsonRes = jsonDecode(res.body);
+        final merchants = jsonRes['data']?['merchants'] ?? [];
+        setState(() {
+          _hasStaffAccount = merchants.isNotEmpty;
+        });
+      }
+    } catch (_) {}
   }
 
   @override
@@ -217,6 +243,13 @@ class _AccountPageState extends State<AccountPage> {
                       value: 'Manage or register your merchant account',
                       onTap: _handleMerchantAccount,
                     ),
+                    if (_hasStaffAccount)
+                      _InfoTile(
+                        icon: Icons.computer_rounded,
+                        title: 'Staff Account',
+                        value: 'Manage your assigned outlets',
+                        onTap: () => context.pushNamed(RouteNames.staffOutletList),
+                      ),
                     ]),
 
                     const SizedBox(height: 16),
