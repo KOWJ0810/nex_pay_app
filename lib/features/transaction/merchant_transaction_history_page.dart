@@ -120,7 +120,7 @@ class _MerchantTransactionHistoryPageState
   }
 
   // ──────────────────────────────────────────────
-  // HEADER
+  // HEADER UI
   // ──────────────────────────────────────────────
   Widget _buildHeader() {
     return Container(
@@ -150,7 +150,7 @@ class _MerchantTransactionHistoryPageState
   }
 
   // ──────────────────────────────────────────────
-  // DROPDOWN FILTER
+  // OUTLET FILTER DROPDOWN
   // ──────────────────────────────────────────────
   Widget _buildOutletDropdown() {
     if (loadingOutlets) {
@@ -200,7 +200,7 @@ class _MerchantTransactionHistoryPageState
   }
 
   // ──────────────────────────────────────────────
-  // TRANSACTION LIST
+  // TRANSACTION LIST (NULL SAFE)
   // ──────────────────────────────────────────────
   Widget _buildTransactionList() {
     if (loadingTransactions) {
@@ -221,6 +221,25 @@ class _MerchantTransactionHistoryPageState
       itemCount: transactions.length,
       itemBuilder: (context, index) {
         final t = transactions[index];
+
+        // Null-safe fields
+        final refNum = (t["transactionRefNum"] ?? "-").toString();
+
+        final amountValue = t["amount"];
+        final amount = amountValue is num ? amountValue.toDouble() : 0.0;
+
+        final dateString = t["transactionDateTime"] as String?;
+        String dateLabel = "-";
+        if (dateString != null) {
+          try {
+            dateLabel = formatDate(dateString);
+          } catch (_) {}
+        }
+
+        final outletName = (t["outletName"] ?? "Unknown outlet").toString();
+        final staffName = (t["staffUserName"] ?? "Unknown staff").toString();
+        final payerName = (t["payerUserName"] ?? "Unknown user").toString();
+        final payerPhone = (t["payerPhone"] ?? "-").toString();
 
         return GestureDetector(
           onTap: () {
@@ -246,19 +265,19 @@ class _MerchantTransactionHistoryPageState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Transaction Ref & Amount
+                // Header Row
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      t["transactionRefNum"],
+                      refNum,
                       style: const TextStyle(
                         fontWeight: FontWeight.w800,
                         fontSize: 16,
                       ),
                     ),
                     Text(
-                      "RM ${t["amount"].toStringAsFixed(2)}",
+                      "RM ${amount.toStringAsFixed(2)}",
                       style: const TextStyle(
                         color: primaryColor,
                         fontWeight: FontWeight.w800,
@@ -267,58 +286,51 @@ class _MerchantTransactionHistoryPageState
                     ),
                   ],
                 ),
-                const SizedBox(height: 6),
 
-                Text(
-                  formatDate(t["transactionDateTime"]),
-                  style: const TextStyle(color: Colors.black54),
-                ),
+                const SizedBox(height: 6),
+                Text(dateLabel, style: const TextStyle(color: Colors.black54)),
                 const SizedBox(height: 10),
 
                 Divider(color: Colors.grey.shade300),
-
                 const SizedBox(height: 10),
 
-                // Outlet
                 Row(
                   children: [
                     const Icon(Icons.store_rounded, size: 18, color: primaryColor),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        t["outletName"],
+                        outletName,
                         style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 6),
 
-                // Staff
                 Row(
                   children: [
                     const Icon(Icons.person_rounded,
                         size: 18, color: primaryColor),
                     const SizedBox(width: 6),
                     Text(
-                      t["staffUserName"],
+                      staffName,
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 6),
 
-                // Payer
                 Row(
                   children: [
                     const Icon(Icons.account_circle_rounded,
                         size: 18, color: primaryColor),
                     const SizedBox(width: 6),
-                    Text(
-                      "${t["payerUserName"]} (${t["payerPhone"]})",
-                      style: const TextStyle(color: Colors.black87),
+                    Expanded(
+                      child: Text(
+                        "$payerName ($payerPhone)",
+                        style: const TextStyle(color: Colors.black87),
+                      ),
                     ),
                   ],
                 ),

@@ -9,15 +9,29 @@ import '../../core/constants/api_config.dart';
 import '../../core/constants/colors.dart';
 
 class EnterAmountPage extends StatefulWidget {
-  final int userId;
-  final String userName;
-  final String phoneNum;
+  final int? userId;
+  final String? userName;
+  final String? userPhone;
+  final String? type;
+  final int? merchantId;
+  final String? merchantName;
+  final String? merchantType;
+  final int? outletId;
+  final String? outletName;
+  final String? qrPayload;
 
   const EnterAmountPage({
     super.key,
-    required this.userId,
-    required this.userName,
-    required this.phoneNum,
+    this.userId,
+    this.userName,
+    this.userPhone,
+    this.type,
+    this.merchantId,
+    this.merchantName,
+    this.merchantType,
+    this.outletId,
+    this.outletName,
+    this.qrPayload,
   });
 
   @override
@@ -67,7 +81,7 @@ class _EnterAmountPageState extends State<EnterAmountPage> {
         return;
       }
 
-      final url = Uri.parse('${ApiConfig.baseUrl}/p2p/transfer');
+      final url = Uri.parse('${ApiConfig.baseUrl}/qr/pay');
       final response = await http.post(
         url,
         headers: {
@@ -75,7 +89,7 @@ class _EnterAmountPageState extends State<EnterAmountPage> {
           'Authorization': 'Bearer $token',
         },
         body: jsonEncode({
-          'toPhone': widget.phoneNum,
+          'qrPayload': widget.qrPayload ?? '',
           'amount': amount,
           'note': note,
         }),
@@ -83,18 +97,21 @@ class _EnterAmountPageState extends State<EnterAmountPage> {
 
       final data = jsonDecode(response.body);
       if (response.statusCode == 200 && data['success'] == true) {
-        final transactionData = data['data'];
+        final tx = data['data'];
 
         setState(() => _isLoading = false);
         context.pushNamed(
           RouteNames.transferSuccess,
           extra: {
-            'transactionId': transactionData['transactionId'],
-            'transactionRefNum': transactionData['transactionRefNum'],
-            'amount': transactionData['amount'],
-            'fromUserId': transactionData['fromUserId'],
-            'toUserId': transactionData['toUserId'],
-            'timestamp': transactionData['at'],
+            'type': tx['type'],
+            'transactionId': tx['transactionId'],
+            'transactionRefNum': tx['transactionRefNum'],
+            'amount': tx['amount'],
+            'status': tx['status'],
+            'senderUserId': tx['senderUserId'],
+            'receiverUserId': tx['receiverUserId'],
+            'merchantId': tx['merchantId'],
+            'outletId': tx['outletId'],
           },
         );
       } else {
@@ -164,27 +181,37 @@ class _EnterAmountPageState extends State<EnterAmountPage> {
                   ),
                   const SizedBox(width: 16),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.userName,
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          widget.phoneNum,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Colors.black54,
-                            letterSpacing: 0.3,
-                          ),
-                        ),
-                      ],
+                    child: Builder(
+                      builder: (context) {
+                        final displayTitle = widget.type == 'MERCHANT_OUTLET'
+                            ? (widget.merchantName ?? 'Unknown Merchant')
+                            : (widget.userName ?? 'Unknown User');
+                        final displaySubtitle = widget.type == 'MERCHANT_OUTLET'
+                            ? (widget.outletName ?? '-')
+                            : (widget.userPhone ?? '-');
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              displayTitle,
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              displaySubtitle,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Colors.black54,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ),
                 ],
