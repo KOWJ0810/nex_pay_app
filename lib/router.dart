@@ -88,6 +88,12 @@ import 'package:nex_pay_app/features/staff/staff_dashboard_page.dart';
 import 'package:nex_pay_app/features/transaction/outlet_transaction_history_page.dart';
 import 'package:nex_pay_app/features/transaction/outlet_transaction_detail_page.dart';
 import 'package:nex_pay_app/features/transaction/merchant_transaction_detail_page.dart';
+import 'package:nex_pay_app/features/QrCode/merchant_receive_qr_code_page.dart';
+import 'package:nex_pay_app/features/paymentLink/show_payment_link_page.dart';
+import 'package:nex_pay_app/features/paymentLink/payment_link_preview_page.dart';
+import 'package:nex_pay_app/features/paymentLink/outlet_list_payment_link_page.dart';
+import 'package:nex_pay_app/features/paymentLink/payment_link_success_page.dart';
+import 'package:nex_pay_app/features/QrCode/outlet_list_qr_code_page.dart';
 
 class RouteNames {
   static const splash = 'splash';
@@ -172,6 +178,12 @@ class RouteNames {
   static const outletTransactionHistory = 'outlet-transaction-history';
   static const outletTransactionDetail = 'outlet-transaction-detail';
   static const merchantTransactionDetail = 'merchant-transaction-detail';
+  static const merchantReceiveQrCode = 'merchant-receive-qr-code';
+  static const showPaymentLink = 'show-payment-link';
+  static const paymentLinkPreview = 'payment-link-preview'; 
+  static const outletListPaymentLink = 'outlet-list-payment-link';
+  static const paymentLinkSuccess = 'payment-link-success';
+  static const outletListQrCode = 'outlet-list-qr-code';
 }
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -490,9 +502,16 @@ final GoRouter appRouter = GoRouter(
       builder: (ctx, st) {
         final extras = st.extra as Map<String, dynamic>;
         return EnterAmountPage(
-          userId: extras['user_id'] as int,
-          userName: extras['user_name'] as String,
-          phoneNum: extras['phoneNum'] as String,
+          type: extras['type'] as String?,
+          userId: extras['userId'] as int?,
+          userName: extras['userName'] as String?,
+          userPhone: extras['userPhone'] as String?,
+          merchantId: extras['merchantId'] as int?,
+          merchantName: extras['merchantName'] as String?,
+          merchantType: extras['merchantType'] as String?,
+          outletId: extras['outletId'] as int?,
+          outletName: extras['outletName'] as String?,
+          qrPayload: extras['qrPayload'] as String?,
         );
       },
     ),
@@ -505,9 +524,12 @@ final GoRouter appRouter = GoRouter(
           transactionId: extras['transactionId'] as int,
           transactionRefNum: extras['transactionRefNum'] as String,
           amount: extras['amount'] as double,
-          fromUserId: extras['fromUserId'] as int,
-          toUserId: extras['toUserId'] as int,
-          timestamp: extras['timestamp'] as String,
+          senderUserId: extras['senderUserId'] as int?,
+          receiverUserId: extras['receiverUserId'] as int?,
+          type: extras['type'] as String?,
+          status: extras['status'] as String?,
+          merchantId: extras['merchantId'] as int?,
+          outletId: extras['outletId'] as int?,
         );
       },
     ),
@@ -920,6 +942,62 @@ final GoRouter appRouter = GoRouter(
         final extras = st.extra as Map<String, dynamic>;
         final transactionId = extras['transactionId'] as int;
         return MerchantTransactionDetailPage(transactionId: transactionId);
+      },
+    ),
+    GoRoute(
+      name: RouteNames.merchantReceiveQrCode,
+      path: '/merchant-receive-qr-code',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        final outletId = extras['outletId'] as int;
+        return MerchantReceiveQrCodePage(outletId: outletId);
+      },
+    ),
+    GoRoute(
+      name: RouteNames.showPaymentLink,
+      path: '/show-payment-link',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        final outletId = extras['outletId'] as int;
+        return ShowPaymentLinkPage(outletId: outletId);
+      },
+    ),
+    GoRoute(
+      name: RouteNames.paymentLinkPreview,
+      path: '/payment-link-preview',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        final token = extras['token'] as String;
+        return PaymentLinkPreviewPage(token: token);
+      },
+    ),
+    GoRoute(
+      name: RouteNames.outletListPaymentLink,
+      path: '/outlet-list-payment-link',
+      builder: (ctx, st) {
+        return OutletListPaymentLinkPage();
+      },
+    ),
+    GoRoute(
+      name: RouteNames.paymentLinkSuccess,
+      path: '/payment-link-success',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        return PaymentLinkSuccessPage(
+          transactionId: extras['transactionId'] as int?,
+          transactionRefNum: extras['transactionRefNum'] as String?,
+          amount: extras['amount'] as double?,
+          status: extras['status'] as String?,
+          merchantName: extras['merchantName'] as String?,
+          outletName: extras['outletName'] as String?,
+        );
+      },
+    ),
+    GoRoute(
+      name: RouteNames.outletListQrCode,
+      path: '/outlet-list-qr-code',
+      builder: (ctx, st) {
+        return const OutletListQrCodePage();
       },
     ),
   ],

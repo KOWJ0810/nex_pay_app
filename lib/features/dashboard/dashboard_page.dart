@@ -517,7 +517,7 @@ class _ActionTileState extends State<_ActionTile> {
     }
 
     final response = await http.get(
-      Uri.parse('${ApiConfig.baseUrl}/p2p/qr/receive'),
+      Uri.parse('${ApiConfig.baseUrl}/qr/user/receive'),
       headers: {'Authorization': 'Bearer $token'},
     );
 

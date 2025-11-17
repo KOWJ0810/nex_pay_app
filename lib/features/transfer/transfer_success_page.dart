@@ -6,18 +6,24 @@ class TransferSuccessPage extends StatelessWidget {
   final int transactionId;
   final String transactionRefNum;
   final double amount;
-  final int fromUserId;
-  final int toUserId;
-  final String timestamp;
+  final int? senderUserId;
+  final int? receiverUserId;
+  final String? type;
+  final String? status;
+  final int? merchantId;
+  final int? outletId;
 
   const TransferSuccessPage({
     super.key,
     required this.transactionId,
     required this.transactionRefNum,
     required this.amount,
-    required this.fromUserId,
-    required this.toUserId,
-    required this.timestamp,
+    this.senderUserId,
+    this.receiverUserId,
+    this.type,
+    this.status,
+    this.merchantId,
+    this.outletId,
   });
 
   @override
@@ -65,11 +71,36 @@ class TransferSuccessPage extends StatelessWidget {
                     const SizedBox(height: 12),
                     _buildRow('Amount', 'RM ${amount.toStringAsFixed(2)}'),
                     const SizedBox(height: 12),
-                    _buildRow('From User ID', fromUserId.toString()),
-                    const SizedBox(height: 12),
-                    _buildRow('To User ID', toUserId.toString()),
-                    const SizedBox(height: 12),
-                    _buildRow('Timestamp', timestamp),
+
+                    // P2P → show only receiverUserId
+                    if (type == "P2P") ...[
+                      if (receiverUserId != null) ...[
+                        _buildRow('Receiver User ID', receiverUserId.toString()),
+                        const SizedBox(height: 12),
+                      ],
+                    ],
+
+                    // MERCHANT_OUTLET → show merchant + outlet information
+                    if (type == "MERCHANT_OUTLET") ...[
+                      if (merchantId != null) ...[
+                        _buildRow('Merchant ID', merchantId.toString()),
+                        const SizedBox(height: 12),
+                      ],
+                      if (outletId != null) ...[
+                        _buildRow('Outlet ID', outletId.toString()),
+                        const SizedBox(height: 12),
+                      ],
+                    ],
+
+                    // Always show type & status if available
+                    if (type != null) ...[
+                      _buildRow('Type', type!),
+                      const SizedBox(height: 12),
+                    ],
+                    if (status != null) ...[
+                      _buildRow('Status', status!),
+                      const SizedBox(height: 12),
+                    ],
                   ],
                 ),
               ),

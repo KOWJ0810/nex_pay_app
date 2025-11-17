@@ -191,7 +191,7 @@ class _MerchantTransactionDetailPageState
                                 ),
                               ),
                               Text(
-                                transaction!["amount"].toStringAsFixed(2),
+                                ((transaction?["amount"] ?? 0) as num).toDouble().toStringAsFixed(2),
                                 style: const TextStyle(
                                   fontSize: 36,
                                   fontWeight: FontWeight.bold,
@@ -200,7 +200,7 @@ class _MerchantTransactionDetailPageState
                               ),
                               const SizedBox(height: 6),
                               Text(
-                                transaction!["transactionRefNum"],
+                                (transaction?["transactionRefNum"] ?? "").toString(),
                                 style: const TextStyle(
                                   fontSize: 14,
                                   color: Colors.white70,
@@ -213,11 +213,10 @@ class _MerchantTransactionDetailPageState
                         const SizedBox(height: 20),
 
                         // -------------------- DETAILS --------------------
-                        _detailTile("Status", transaction!["status"]),
-                        _detailTile("Category", transaction!["category"]),
-                        _detailTile("Payment Type", transaction!["paymentType"]),
-                        _detailTile("Date & Time",
-                            transaction!["transactionDateTime"]),
+                        _detailTile("Status", (transaction?["status"] ?? "").toString()),
+                        _detailTile("Category", (transaction?["category"] ?? "").toString()),
+                        _detailTile("Payment Type", (transaction?["paymentType"] ?? "").toString()),
+                        _detailTile("Date & Time", (transaction?["transactionDateTime"] ?? "").toString()),
 
                         const SizedBox(height: 10),
                         const Text(
@@ -230,8 +229,8 @@ class _MerchantTransactionDetailPageState
                         ),
                         const SizedBox(height: 8),
 
-                        _detailTile("Merchant", transaction!["merchantName"]),
-                        _detailTile("Outlet", transaction!["outletName"]),
+                        _detailTile("Merchant", (transaction?["merchantName"] ?? "").toString()),
+                        _detailTile("Outlet", (transaction?["outletName"] ?? "").toString()),
 
                         const SizedBox(height: 10),
                         const Text(
@@ -244,9 +243,8 @@ class _MerchantTransactionDetailPageState
                         ),
                         const SizedBox(height: 8),
 
-                        _detailTile("Staff Name", transaction!["staffName"]),
-                        _detailTile(
-                            "Staff User ID", transaction!["staffUserId"].toString()),
+                        _detailTile("Staff Name", (transaction?["staffName"] ?? "").toString()),
+                        _detailTile("Staff User ID", (transaction?["staffUserId"] ?? "").toString()),
 
                         const SizedBox(height: 10),
                         const Text(
@@ -259,8 +257,8 @@ class _MerchantTransactionDetailPageState
                         ),
                         const SizedBox(height: 8),
 
-                        _detailTile("Payer Name", transaction!["payerName"]),
-                        _detailTile("Payer Phone", transaction!["payerPhone"]),
+                        _detailTile("Payer Name", (transaction?["payerName"] ?? "").toString()),
+                        _detailTile("Payer Phone", (transaction?["payerPhone"] ?? "").toString()),
                       ],
                     ),
                   ),

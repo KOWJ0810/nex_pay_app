@@ -31,41 +31,14 @@ class _MerchantDashboardPageState extends State<MerchantDashboardPage> {
 
   // Outlets
   List<_OutletOption> _outletOptions = [];
-  bool _isLoadingSummary = false;
   bool _isLoadingOutlets = false;
+
+  // Chart
+  bool _isLoadingChart = false;
+  List<_ChartPoint> _chartPoints = [];
+
+  // Errors
   String? _errorMessage;
-
-  // Demo merchant name (could be wired to /merchants/user in future)
-  final String merchantName = 'Kenneph Electronics Store';
-
-  // Static chart data (still demo, not API driven)
-  final Map<String, List<FlSpot>> chartData = {
-    'Day': [
-      FlSpot(0, 2),
-      FlSpot(1, 3),
-      FlSpot(2, 2.5),
-      FlSpot(3, 4),
-      FlSpot(4, 5.5),
-      FlSpot(5, 4.8),
-      FlSpot(6, 6),
-    ],
-    'Month': [
-      FlSpot(1, 10),
-      FlSpot(5, 13),
-      FlSpot(10, 15),
-      FlSpot(15, 18),
-      FlSpot(20, 22),
-      FlSpot(25, 19),
-      FlSpot(30, 25),
-    ],
-    'Year': [
-      FlSpot(1, 20),
-      FlSpot(3, 25),
-      FlSpot(6, 30),
-      FlSpot(9, 40),
-      FlSpot(12, 50),
-    ],
-  };
 
   static const primaryColor = Color(0xFF102520);
   static const accentColor = Color(0xFFB2DD62);
@@ -76,187 +49,163 @@ class _MerchantDashboardPageState extends State<MerchantDashboardPage> {
   void initState() {
     super.initState();
     _loadOutlets();
-    _loadSummary(); // default: Day + All outlets (merchant scope)
+    _loadSummary();
+    _loadChart();
   }
 
+  //---------------------------------------------------------------------------
+  // LOAD OUTLETS
+  //---------------------------------------------------------------------------
   Future<void> _loadOutlets() async {
-    setState(() {
-      _isLoadingOutlets = true;
-    });
+    setState(() => _isLoadingOutlets = true);
 
     try {
       final token = await _secureStorage.read(key: 'token');
-      if (token == null) {
-        if (!mounted) return;
-        setState(() {
-          _errorMessage = 'Session expired. Please log in again.';
-          _isLoadingOutlets = false;
-        });
-        return;
-      }
+      if (token == null) return;
 
       final res = await http.get(
         Uri.parse('${ApiConfig.baseUrl}/merchants/outlets'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
+        headers: {'Authorization': 'Bearer $token'},
       );
 
-      if (!mounted) return;
+      final json = jsonDecode(res.body);
 
-      if (res.statusCode == 200) {
-        final jsonRes = jsonDecode(res.body);
-        if (jsonRes['success'] == true &&
-            jsonRes['data'] != null &&
-            jsonRes['data']['outlets'] != null) {
-          final List outlets = jsonRes['data']['outlets'];
-          final options = <_OutletOption>[
+      if (json['success'] == true) {
+        final List outlets = json['data']['outlets'];
+
+        setState(() {
+          _outletOptions = [
             const _OutletOption(id: null, label: 'All outlets'),
-            ...outlets.map((e) {
-              return _OutletOption(
-                id: e['outletId'] as int,
-                label: e['outletName'] as String? ?? 'Outlet ${e['outletId']}',
-              );
-            }),
+            ...outlets.map((e) => _OutletOption(
+                  id: e['outletId'],
+                  label: e['outletName'],
+                ))
           ];
-          setState(() {
-            _outletOptions = options;
-          });
-        } else {
-          setState(() {
-            _outletOptions = const [
-              _OutletOption(id: null, label: 'All outlets'),
-            ];
-          });
-        }
-      } else {
-        setState(() {
-          _errorMessage = 'Failed to load outlets (${res.statusCode})';
         });
       }
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage = 'Error loading outlets: $e';
-      });
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoadingOutlets = false;
-        });
-      }
-    }
+    } catch (_) {}
+    setState(() => _isLoadingOutlets = false);
   }
 
+  //---------------------------------------------------------------------------
+  // LOAD SUMMARY (Already implemented earlier)
+  //---------------------------------------------------------------------------
   Future<void> _loadSummary() async {
-    setState(() {
-      _isLoadingSummary = true;
-      _errorMessage = null;
-    });
+    setState(() => _errorMessage = null);
 
     try {
       final token = await _secureStorage.read(key: 'token');
-      if (token == null) {
-        if (!mounted) return;
-        setState(() {
-          _errorMessage = 'Session expired. Please log in again.';
-          _isLoadingSummary = false;
-        });
-        return;
-      }
+      if (token == null) return;
 
       final now = DateTime.now();
       late Uri uri;
 
       if (_selectedOutletId == null) {
-        // MERCHANT scope
+        // Merchant aggregated
         if (_selectedPeriod == 'Day') {
-          final dateStr =
-              '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
           uri = Uri.parse(
-              '${ApiConfig.baseUrl}/merchants/analytics/merchant/day?date=$dateStr');
-          _periodLabel = dateStr;
+              "${ApiConfig.baseUrl}/merchants/analytics/merchant/day?date=${_formatDate(now)}");
+          _periodLabel = _formatDate(now);
         } else if (_selectedPeriod == 'Month') {
-          final year = now.year;
-          final month = now.month.toString().padLeft(2, '0');
           uri = Uri.parse(
-              '${ApiConfig.baseUrl}/merchants/analytics/merchant/month?year=$year&month=$month');
-          _periodLabel = '$year-$month';
+              "${ApiConfig.baseUrl}/merchants/analytics/merchant/month?year=${now.year}&month=${now.month}");
+          _periodLabel = "${now.year}-${now.month}";
         } else {
-          final year = now.year;
           uri = Uri.parse(
-              '${ApiConfig.baseUrl}/merchants/analytics/merchant/year?year=$year');
-          _periodLabel = '$year';
+              "${ApiConfig.baseUrl}/merchants/analytics/merchant/year?year=${now.year}");
+          _periodLabel = "${now.year}";
         }
       } else {
-        // OUTLET scope
+        // Outlet
         final id = _selectedOutletId!;
         if (_selectedPeriod == 'Day') {
-          final dateStr =
-              '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
           uri = Uri.parse(
-              '${ApiConfig.baseUrl}/merchants/analytics/outlets/$id/day?date=$dateStr');
-          _periodLabel = dateStr;
+              "${ApiConfig.baseUrl}/merchants/analytics/outlets/$id/day?date=${_formatDate(now)}");
+          _periodLabel = _formatDate(now);
         } else if (_selectedPeriod == 'Month') {
-          final year = now.year;
-          final month = now.month.toString().padLeft(2, '0');
           uri = Uri.parse(
-              '${ApiConfig.baseUrl}/merchants/analytics/outlets/$id/month?year=$year&month=$month');
-          _periodLabel = '$year-$month';
+              "${ApiConfig.baseUrl}/merchants/analytics/outlets/$id/month?year=${now.year}&month=${now.month}");
+          _periodLabel = "${now.year}-${now.month}";
         } else {
-          final year = now.year;
           uri = Uri.parse(
-              '${ApiConfig.baseUrl}/merchants/analytics/outlets/$id/year?year=$year');
-          _periodLabel = '$year';
+              "${ApiConfig.baseUrl}/merchants/analytics/outlets/$id/year?year=${now.year}");
+          _periodLabel = "${now.year}";
         }
       }
 
-      final res = await http.get(
-        uri,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      );
+      final res = await http.get(uri, headers: {
+        'Authorization': 'Bearer $token',
+      });
 
-      if (!mounted) return;
-
-      if (res.statusCode == 200) {
-        final jsonRes = jsonDecode(res.body);
-        if (jsonRes['success'] == true && jsonRes['data'] != null) {
-          final data = jsonRes['data'];
-          setState(() {
-            _totalRevenue =
-                (data['totalRevenue'] as num?)?.toDouble() ?? 0.0;
-            _totalTransactions = data['totalTransactions'] as int? ?? 0;
-          });
-        } else {
-          setState(() {
-            _totalRevenue = 0.0;
-            _totalTransactions = 0;
-            _errorMessage = 'No analytics data available.';
-          });
-        }
-      } else {
+      final json = jsonDecode(res.body);
+      if (json['success'] == true) {
+        final data = json['data'];
         setState(() {
-          _errorMessage = 'Failed to load summary (${res.statusCode})';
+          _totalRevenue = (data['totalRevenue'] ?? 0).toDouble();
+          _totalTransactions = data['totalTransactions'] ?? 0;
         });
       }
     } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage = 'Error loading summary: $e';
-      });
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoadingSummary = false;
-        });
-      }
+      setState(() => _errorMessage = e.toString());
     }
   }
 
+  String _formatDate(DateTime d) =>
+      "${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
+
+  //---------------------------------------------------------------------------
+  // LOAD CHART DATA
+  //---------------------------------------------------------------------------
+  Future<void> _loadChart() async {
+    setState(() => _isLoadingChart = true);
+
+    try {
+      final token = await _secureStorage.read(key: 'token');
+      if (token == null) return;
+
+      String range = _selectedPeriod.toLowerCase(); // day / month / year
+      Uri url;
+
+      if (_selectedOutletId == null) {
+        // All outlets
+        url = Uri.parse(
+            "${ApiConfig.baseUrl}/merchants/revenue?range=$range");
+      } else {
+        // Specific outlet
+        url = Uri.parse(
+            "${ApiConfig.baseUrl}/merchants/outlets/${_selectedOutletId}/revenue?range=$range");
+      }
+
+      final res = await http.get(url, headers: {
+        'Authorization': 'Bearer $token',
+      });
+
+      final json = jsonDecode(res.body);
+
+      if (json['success'] == true && json['data']['points'] != null) {
+        List points = json['data']['points'];
+
+        setState(() {
+          _chartPoints = points
+              .map((p) => _ChartPoint(
+                    label: p['label'] ?? "",
+                    amount: (p['amount'] ?? 0).toDouble(),
+                  ))
+              .toList();
+        });
+      } else {
+        setState(() => _chartPoints = []);
+      }
+    } catch (_) {
+      setState(() => _chartPoints = []);
+    }
+
+    setState(() => _isLoadingChart = false);
+  }
+
+  //---------------------------------------------------------------------------
+  // BUILD UI
+  //---------------------------------------------------------------------------
   @override
   Widget build(BuildContext context) {
     return NexMerchantScaffold(
@@ -267,370 +216,13 @@ class _MerchantDashboardPageState extends State<MerchantDashboardPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ─────────── Merchant Header Card ───────────
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      primaryColor,
-                      primaryColor.withOpacity(.9),
-                      accentColor.withOpacity(.9),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(22),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 22,
-                          backgroundColor: Colors.white.withOpacity(0.18),
-                          child: const Icon(
-                            Icons.storefront_rounded,
-                            color: Colors.white,
-                            size: 24,
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                "Merchant dashboard",
-                                style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              const SizedBox(height: 3),
-                              Text(
-                                merchantName,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 20,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        IconButton(
-                          onPressed: () {
-                            // You can route to merchant settings or analytics detail
-                          },
-                          icon: const Icon(
-                            Icons.insights_rounded,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 4,
-                      children: [
-                        Chip(
-                          backgroundColor: Colors.white.withOpacity(0.16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(18),
-                          ),
-                          label: Text(
-                            'Period: ${_periodLabel.isNotEmpty ? _periodLabel : _selectedPeriod}',
-                            style: const TextStyle(
-                              color: primaryColor,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                        Chip(
-                          backgroundColor: Colors.white.withOpacity(0.16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(18),
-                          ),
-                          label: Text(
-                            _selectedOutletId == null
-                                ? 'All outlets'
-                                : _selectedOutletLabel,
-                            style: const TextStyle(
-                              color: primaryColor,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
+              _headerCard(),
               const SizedBox(height: 18),
-
-              // ─────────── Filters Card (Period + Outlet) ───────────
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Filters',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: primaryColor,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildDropdownContainer(
-                            label: 'Period',
-                            child: DropdownButton<String>(
-                              value: _selectedPeriod,
-                              isExpanded: true,
-                              underline: const SizedBox(),
-                              icon: const Icon(
-                                Icons.keyboard_arrow_down_rounded,
-                                size: 20,
-                              ),
-                              style: const TextStyle(
-                                color: primaryColor,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
-                              ),
-                              onChanged: (value) {
-                                if (value == null) return;
-                                setState(() {
-                                  _selectedPeriod = value;
-                                });
-                                _loadSummary();
-                              },
-                              items: const ['Day', 'Month', 'Year']
-                                  .map(
-                                    (e) => DropdownMenuItem(
-                                      value: e,
-                                      child: Text(e),
-                                    ),
-                                  )
-                                  .toList(),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _buildDropdownContainer(
-                            label: 'Outlet',
-                            child: _isLoadingOutlets
-                                ? const SizedBox(
-                                    height: 24,
-                                    child: Center(
-                                      child: SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: primaryColor,
-                                        ),
-                                      ),
-                                    ),
-                                  )
-                                : DropdownButton<int?>(
-                                    value: _selectedOutletId,
-                                    isExpanded: true,
-                                    underline: const SizedBox(),
-                                    icon: const Icon(
-                                      Icons.keyboard_arrow_down_rounded,
-                                      size: 20,
-                                    ),
-                                    style: const TextStyle(
-                                      color: primaryColor,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 14,
-                                    ),
-                                    onChanged: (value) {
-                                      setState(() {
-                                        _selectedOutletId = value;
-                                        _selectedOutletLabel = _outletOptions
-                                            .firstWhere(
-                                              (o) => o.id == value,
-                                              orElse: () =>
-                                                  const _OutletOption(
-                                                      id: null,
-                                                      label: 'All outlets'),
-                                            )
-                                            .label;
-                                      });
-                                      _loadSummary();
-                                    },
-                                    items: _outletOptions
-                                        .map(
-                                          (o) => DropdownMenuItem<int?>(
-                                            value: o.id,
-                                            child: Text(o.label),
-                                          ),
-                                        )
-                                        .toList(),
-                                  ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
+              _filtersCard(),
               const SizedBox(height: 18),
-
-              if (_errorMessage != null) ...[
-                Container(
-                  width: double.infinity,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.04),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.red.withOpacity(0.25)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.error_outline_rounded,
-                          size: 18, color: Colors.red),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _errorMessage!,
-                          style: const TextStyle(
-                            color: Colors.red,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-              ],
-
-              // ─────────── Summary Cards ───────────
-              if (_isLoadingSummary)
-                const Center(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 24),
-                    child: CircularProgressIndicator(color: primaryColor),
-                  ),
-                )
-              else
-                Row(
-                  children: [
-                    _summaryCard(
-                      title: _selectedOutletId == null
-                          ? "Total revenue\n(all outlets)"
-                          : "Revenue\n(${_selectedOutletLabel})",
-                      value: "RM ${_totalRevenue.toStringAsFixed(2)}",
-                      icon: Icons.paid_rounded,
-                      color: accentColor,
-                    ),
-                    const SizedBox(width: 16),
-                    _summaryCard(
-                      title: "Transactions",
-                      value: "$_totalTransactions",
-                      icon: Icons.swap_horiz_rounded,
-                      color: Colors.orangeAccent,
-                    ),
-                  ],
-                ),
-
+              _summarySection(),
               const SizedBox(height: 26),
-
-              // ─────────── Chart Section ───────────
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: const [
-                  Text(
-                    "Transaction statistics",
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: primaryColor,
-                    ),
-                  ),
-                  Icon(
-                    Icons.show_chart_rounded,
-                    color: primaryColor,
-                    size: 20,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              Container(
-                height: 250,
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: LineChart(
-                  LineChartData(
-                    gridData: FlGridData(
-                      show: true,
-                      drawVerticalLine: false,
-                      getDrawingHorizontalLine: (value) => FlLine(
-                        color: Colors.grey.withOpacity(0.15),
-                        strokeWidth: 1,
-                      ),
-                    ),
-                    titlesData: FlTitlesData(show: false),
-                    borderData: FlBorderData(show: false),
-                    lineBarsData: [
-                      LineChartBarData(
-                        spots: chartData[_selectedPeriod] ??
-                            chartData['Day']!, // fallback
-                        isCurved: true,
-                        color: accentColor,
-                        barWidth: 3,
-                        belowBarData: BarAreaData(
-                          show: true,
-                          color: accentColor.withOpacity(0.18),
-                        ),
-                        dotData: const FlDotData(show: false),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              _chartSection(),
             ],
           ),
         ),
@@ -638,31 +230,155 @@ class _MerchantDashboardPageState extends State<MerchantDashboardPage> {
     );
   }
 
-  Widget _buildDropdownContainer({
-    required String label,
-    required Widget child,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  //---------------------------------------------------------------------------
+  // UI WIDGETS
+  //---------------------------------------------------------------------------
+
+  Widget _headerCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            primaryColor,
+            primaryColor.withOpacity(.9),
+            accentColor.withOpacity(.9),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: const [
+              CircleAvatar(
+                radius: 22,
+                backgroundColor: Colors.white24,
+                child: Icon(Icons.storefront_rounded, color: Colors.white),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  "Merchant Dashboard",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            "Period: $_periodLabel",
+            style: const TextStyle(color: Colors.white70),
+          ),
+          Text(
+            _selectedOutletId == null
+                ? "All outlets"
+                : _selectedOutletLabel,
+            style: const TextStyle(color: Colors.white70),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _filtersCard() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black12.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 4))
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("Filters",
+              style: TextStyle(
+                  fontWeight: FontWeight.bold, color: primaryColor)),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: _buildDropdownContainer(
+                  label: "Period",
+                  child: DropdownButton(
+                    value: _selectedPeriod,
+                    isExpanded: true,
+                    underline: const SizedBox(),
+                    items: const [
+                      DropdownMenuItem(value: "Day", child: Text("Day")),
+                      DropdownMenuItem(value: "Month", child: Text("Month")),
+                      DropdownMenuItem(value: "Year", child: Text("Year")),
+                    ],
+                    onChanged: (value) {
+                      setState(() => _selectedPeriod = value!);
+                      _loadSummary();
+                      _loadChart();
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildDropdownContainer(
+                  label: "Outlet",
+                  child: DropdownButton(
+                    value: _selectedOutletId,
+                    isExpanded: true,
+                    underline: const SizedBox(),
+                    items: _outletOptions
+                        .map((o) => DropdownMenuItem(
+                              value: o.id,
+                              child: Text(o.label),
+                            ))
+                        .toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedOutletId = value;
+                        _selectedOutletLabel = _outletOptions
+                            .firstWhere((e) => e.id == value)
+                            .label;
+                      });
+                      _loadSummary();
+                      _loadChart();
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _summarySection() {
+    return Row(
       children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 11,
-            color: Colors.black54,
-            fontWeight: FontWeight.w500,
-          ),
+        _summaryCard(
+          title: "Revenue",
+          value: "RM ${_totalRevenue.toStringAsFixed(2)}",
+          color: accentColor,
+          icon: Icons.paid_rounded,
         ),
-        const SizedBox(height: 4),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF9FAFB),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.black12.withOpacity(0.12)),
-          ),
-          child: child,
-        ),
+        const SizedBox(width: 16),
+        _summaryCard(
+          title: "Transactions",
+          value: _totalTransactions.toString(),
+          color: Colors.orangeAccent,
+          icon: Icons.swap_horiz_rounded,
+        )
       ],
     );
   }
@@ -677,53 +393,167 @@ class _MerchantDashboardPageState extends State<MerchantDashboardPage> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                  color: Colors.black12.withOpacity(0.05),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4))
+            ]),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             CircleAvatar(
-              backgroundColor: color.withOpacity(0.12),
               radius: 20,
-              child: Icon(icon, color: color, size: 22),
+              backgroundColor: color.withOpacity(0.2),
+              child: Icon(icon, color: color),
             ),
-            const SizedBox(height: 12),
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                color: primaryColor,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              title,
-              textAlign: TextAlign.left,
-              style: const TextStyle(
-                color: Colors.black54,
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
+            const SizedBox(height: 8),
+            Text(value,
+                style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: primaryColor)),
+            Text(title, style: const TextStyle(color: Colors.black54)),
           ],
         ),
       ),
     );
   }
+
+  //---------------------------------------------------------------------------
+  // CHART SECTION
+  //---------------------------------------------------------------------------
+  Widget _chartSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text("Revenue chart",
+            style: TextStyle(
+                fontSize: 18, fontWeight: FontWeight.w700, color: primaryColor)),
+        const SizedBox(height: 12),
+        Container(
+          height: 260,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                  color: Colors.black12.withOpacity(0.05),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4))
+            ],
+          ),
+          child: _isLoadingChart
+              ? const Center(child: CircularProgressIndicator())
+              : _chartPoints.isEmpty
+                  ? const Center(child: Text("No data"))
+                  : SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: SizedBox(
+                        width: (_chartPoints.length * 50).toDouble(),
+                        child: BarChart(
+                          BarChartData(
+                            borderData: FlBorderData(show: false),
+                            gridData: FlGridData(show: false),
+                            titlesData: FlTitlesData(
+                              leftTitles: AxisTitles(
+                                sideTitles: SideTitles(
+                                  showTitles: true,
+                                  reservedSize: 35,
+                                  getTitlesWidget: (value, meta) => Text(
+                                    value.toInt().toString(),
+                                    style: const TextStyle(
+                                        fontSize: 10, color: Colors.black54),
+                                  ),
+                                ),
+                              ),
+                              bottomTitles: AxisTitles(
+                                sideTitles: SideTitles(
+                                  showTitles: true,
+                                  getTitlesWidget: (index, meta) {
+                                    final i = index.toInt();
+                                    if (i < 0 || i >= _chartPoints.length) {
+                                      return const SizedBox.shrink();
+                                    }
+                                    return Padding(
+                                      padding: const EdgeInsets.only(top: 6),
+                                      child: Text(
+                                        _chartPoints[i].label,
+                                        style: const TextStyle(
+                                            fontSize: 9, color: Colors.black87),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                            barGroups: _chartPoints.asMap().entries.map((e) {
+                              int index = e.key;
+                              final p = e.value;
+                              return BarChartGroupData(
+                                x: index,
+                                barRods: [
+                                  BarChartRodData(
+                                    toY: p.amount,
+                                    width: 12,
+                                    borderRadius: BorderRadius.circular(4),
+                                    color: accentColor,
+                                  ),
+                                ],
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ),
+                    ),
+        ),
+      ],
+    );
+  }
+
+  //---------------------------------------------------------------------------
+  Widget _buildDropdownContainer({
+    required String label,
+    required Widget child,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style: const TextStyle(
+                fontSize: 11, color: Colors.black54, fontWeight: FontWeight.w500)),
+        const SizedBox(height: 4),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF9FAFB),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.black12.withOpacity(0.12)),
+          ),
+          child: child,
+        ),
+      ],
+    );
+  }
 }
+
+//---------------------------------------------------------------------------
+// MODELS
+//---------------------------------------------------------------------------
 
 class _OutletOption {
   final int? id;
   final String label;
 
   const _OutletOption({required this.id, required this.label});
+}
+
+class _ChartPoint {
+  final String label;
+  final double amount;
+
+  _ChartPoint({required this.label, required this.amount});
 }

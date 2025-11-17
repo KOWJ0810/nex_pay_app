@@ -35,7 +35,7 @@ class _ScanQrCodePageState extends State<ScanQrCodePage> {
       }
 
       final response = await http.post(
-        Uri.parse('${ApiConfig.baseUrl}/p2p/qr/transfer/preview'),
+        Uri.parse('${ApiConfig.baseUrl}/qr/preview'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -51,9 +51,16 @@ class _ScanQrCodePageState extends State<ScanQrCodePage> {
         context.pushNamed(
           RouteNames.enterAmount,
           extra: {
-            'user_id': data['receiverUserId'],
-            'user_name': data['receiverName'],
-            'phoneNum': data['receiverPhone'],
+            'type': data['type'],
+            'userId': data['userId'],
+            'userName': data['userName'],
+            'userPhone': data['userPhone'],
+            'merchantId': data['merchantId'],
+            'merchantName': data['merchantName'],
+            'merchantType': data['merchantType'],
+            'outletId': data['outletId'],
+            'outletName': data['outletName'],
+            'qrPayload': qrPayload,
           },
         );
       } else {

@@ -289,7 +289,17 @@ class _StaffDashboardPageState extends State<StaffDashboardPage> {
                     icon: Icons.qr_code_rounded,
                     label: "Generate Business QR",
                     onTap: () => context.pushNamed(
-                      RouteNames.home,
+                      RouteNames.merchantReceiveQrCode,
+                      extra: {"outletId": widget.outletId},
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  _menuButton(
+                    icon: Icons.link_rounded,
+                    label: "Generate Payment Link",
+                    onTap: () => context.pushNamed(
+                      RouteNames.showPaymentLink,
                       extra: {"outletId": widget.outletId},
                     ),
                   ),
