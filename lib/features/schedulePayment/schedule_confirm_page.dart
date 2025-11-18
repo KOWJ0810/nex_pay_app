@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:nex_pay_app/core/constants/colors.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:nex_pay_app/core/service/secure_storage.dart';
 import 'dart:convert';
 import '../../core/constants/api_config.dart';
 import 'package:nex_pay_app/router.dart';
@@ -29,7 +30,7 @@ class ScheduleConfirmPage extends StatelessWidget {
   });
 
   Future<void> _confirmSchedule(BuildContext context) async {
-    final storage = const FlutterSecureStorage();
+    final storage = secureStorage;
     try {
       final token = await storage.read(key: 'token');
       final url = Uri.parse('${ApiConfig.baseUrl}/schedules');

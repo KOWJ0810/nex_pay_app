@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:nex_pay_app/core/constants/api_config.dart';
+import 'package:nex_pay_app/core/service/secure_storage.dart';
 
 class MerchantTransactionDetailPage extends StatefulWidget {
   final int transactionId;
@@ -17,7 +18,7 @@ class MerchantTransactionDetailPage extends StatefulWidget {
 
 class _MerchantTransactionDetailPageState
     extends State<MerchantTransactionDetailPage> {
-  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+  final FlutterSecureStorage _secureStorage = secureStorage;
 
   bool isLoading = true;
   Map<String, dynamic>? transaction;

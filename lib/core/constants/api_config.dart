@@ -15,7 +15,7 @@ class ApiConfig {
 
     //lkw hotspot
     // static const String baseUrl = "http://172.20.10.6:8080/api";
-    
+
     //Deployment API
-    static const String baseUrl = "http://18.208.187.139:8080/api";
+    static const String baseUrl = "http://13.223.191.212:8080/api";
 }

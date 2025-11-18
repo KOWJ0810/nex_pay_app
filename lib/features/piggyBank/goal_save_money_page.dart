@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nex_pay_app/core/service/secure_storage.dart';
 import '../../router.dart' show RouteNames;
 import 'package:flutter/material.dart';
 import '../../core/constants/colors.dart';
@@ -27,7 +28,7 @@ class _GoalSaveMoneyPageState extends State<GoalSaveMoneyPage> {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isSubmitting = true);
-    final storage = const FlutterSecureStorage();
+    final storage = secureStorage;
 
     try {
       final token = await storage.read(key: 'token');

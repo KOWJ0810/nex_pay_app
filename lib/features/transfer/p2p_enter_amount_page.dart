@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
+import 'package:nex_pay_app/core/service/secure_storage.dart';
 
 import '../../core/constants/api_config.dart';
 import '../../router.dart';
@@ -201,7 +202,7 @@ class _P2PEnterAmountPageState extends State<P2PEnterAmountPage> {
       errorMessage = null;
     });
 
-    final storage = const FlutterSecureStorage();
+    final storage = secureStorage;
     final token = await storage.read(key: "token");
 
     if (token == null) {

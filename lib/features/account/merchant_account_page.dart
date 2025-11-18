@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:go_router/go_router.dart';
 import 'package:nex_pay_app/core/constants/api_config.dart';
 import 'package:nex_pay_app/core/constants/colors.dart';
+import 'package:nex_pay_app/core/service/secure_storage.dart';
 import 'package:nex_pay_app/router.dart';
 import 'package:nex_pay_app/widgets/nex_merchant_scaffold.dart';
 
@@ -17,7 +18,7 @@ class MerchantAccountPage extends StatefulWidget {
 }
 
 class _MerchantAccountPageState extends State<MerchantAccountPage> {
-  final storage = const FlutterSecureStorage();
+  final storage = secureStorage;
   Map<String, dynamic>? merchantData;
   bool isLoading = true;
   String? errorMessage;

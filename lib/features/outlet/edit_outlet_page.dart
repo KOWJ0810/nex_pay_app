@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
+import 'package:nex_pay_app/core/service/secure_storage.dart';
 import '../../core/constants/api_config.dart';
 import '../../core/constants/colors.dart';
 import '../../router.dart';
@@ -26,7 +27,7 @@ class EditOutletPage extends StatefulWidget {
 class _EditOutletPageState extends State<EditOutletPage> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
-  final FlutterSecureStorage secureStorage = const FlutterSecureStorage();
+  final FlutterSecureStorage secure = secureStorage;
 
   bool isLoading = false;
 
@@ -50,7 +51,7 @@ class _EditOutletPageState extends State<EditOutletPage> {
 
     setState(() => isLoading = true);
 
-    final token = await secureStorage.read(key: "token");
+    final token = await secure.read(key: "token");
 
     try {
       final res = await http.patch(

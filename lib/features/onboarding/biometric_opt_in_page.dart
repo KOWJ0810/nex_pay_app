@@ -6,8 +6,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:local_auth/local_auth.dart';
+import 'package:nex_pay_app/core/service/secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
 import '../../core/constants/colors.dart';
@@ -24,11 +24,8 @@ class BiometricOptInPage extends StatefulWidget {
 class _BiometricOptInPageState extends State<BiometricOptInPage>
     with TickerProviderStateMixin {
   final _auth = LocalAuthentication();
-  
-  final _secure = const FlutterSecureStorage(
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
-    iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
-  );
+
+  final _secure = secureStorage;
 
   bool _deviceSupported = false;
   bool _hasEnrolled = false;

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
+import 'package:nex_pay_app/core/service/secure_storage.dart';
 
 import '../../core/constants/api_config.dart';
 
@@ -14,7 +15,7 @@ class TransactionLimitPage extends StatefulWidget {
 }
 
 class _TransactionLimitPageState extends State<TransactionLimitPage> {
-  final storage = const FlutterSecureStorage();
+  final storage = secureStorage;
 
   // User values loaded from API
   double perTransferLimit = 0;

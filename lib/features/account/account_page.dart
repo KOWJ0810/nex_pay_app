@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nex_pay_app/core/service/secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/constants/colors.dart';
@@ -24,7 +25,7 @@ class _AccountPageState extends State<AccountPage> {
   String? phone;
   String? email;
   String? userId;
-  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+  final FlutterSecureStorage _secureStorage = secureStorage;
 
   bool _pushNoti = true;
   bool _marketingNoti = false;

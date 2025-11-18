@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nex_pay_app/core/service/secure_storage.dart';
 import 'package:nex_pay_app/features/auth/security_fallback_page.dart';
 import 'package:nex_pay_app/features/changePassword/cp_success_page.dart';
 import 'package:nex_pay_app/features/onboarding/biometric_opt_in_page.dart';
@@ -1122,7 +1123,7 @@ class _SplashPageState extends State<SplashPage> {
 
   Future<void> _decide() async {
   final prefs = await SharedPreferences.getInstance();
-  final secure = const FlutterSecureStorage();
+  final secure = secureStorage;
 
   final loggedIn = prefs.getBool('is_logged_in') ?? false;
   final token = await secure.read(key: 'token');

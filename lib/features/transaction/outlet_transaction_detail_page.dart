@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import 'package:nex_pay_app/core/service/secure_storage.dart';
 
 import '../../core/constants/api_config.dart';
 
@@ -17,7 +18,7 @@ class OutletTransactionDetailPage extends StatefulWidget {
 
 class _OutletTransactionDetailPageState
     extends State<OutletTransactionDetailPage> {
-  final storage = const FlutterSecureStorage();
+  final storage = secureStorage;
 
   bool isLoading = true;
   bool hasError = false;

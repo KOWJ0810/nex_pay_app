@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:go_router/go_router.dart';
+import 'package:nex_pay_app/core/service/secure_storage.dart';
 import 'package:nex_pay_app/router.dart';
 import 'package:nex_pay_app/core/constants/api_config.dart';
 
@@ -14,7 +15,7 @@ class EmergencyWalletPage extends StatefulWidget {
 }
 
 class _EmergencyWalletPageState extends State<EmergencyWalletPage> {
-  final storage = const FlutterSecureStorage();
+  final storage = secureStorage;
 
   Map<String, dynamic>? senderUser;
   Map<String, dynamic>? receiverUser;

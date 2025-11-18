@@ -7,6 +7,7 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
+import 'package:nex_pay_app/core/service/secure_storage.dart';
 import 'package:nex_pay_app/features/auth/security_fallback_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
@@ -57,11 +58,7 @@ class _DeviceTakeoverPageState extends State<DeviceTakeoverPage>
   String? _sessionName;
   String? _sessionStatus;
 
-  // Flutter Secure Storage instance (Keystore/Keychain)
-  static const FlutterSecureStorage _secure = FlutterSecureStorage(
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
-    iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
-  );
+  static const FlutterSecureStorage _secure = secureStorage;
 
   late final AnimationController _entrance;
   late final Animation<double> _scaleIn;

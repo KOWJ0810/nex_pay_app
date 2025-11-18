@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
+import 'package:nex_pay_app/core/service/secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -41,10 +42,7 @@ class _TrustedDevicesPageState extends State<TrustedDevicesPage> {
   bool _submittingOtp = false;
 
   // Secure storage instance
-  static const FlutterSecureStorage _secure = FlutterSecureStorage(
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
-    iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
-  );
+  static const FlutterSecureStorage _secure = secureStorage;
 
   @override
   void initState() {

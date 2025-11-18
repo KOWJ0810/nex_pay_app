@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nex_pay_app/core/service/secure_storage.dart';
 import 'package:nex_pay_app/router.dart';
 import '../../widgets/custom_pin_keyboard.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
@@ -16,7 +17,7 @@ class TopUpPage extends StatefulWidget {
 }
 
 class _TopUpPageState extends State<TopUpPage> {
-  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+  final FlutterSecureStorage _secureStorage = secureStorage;
   String _amount = '';
   String _rawInput = '';
   double? balance;

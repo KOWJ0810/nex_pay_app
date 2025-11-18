@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import 'package:nex_pay_app/core/service/secure_storage.dart';
 import '../../core/constants/api_config.dart';
 import '../../core/constants/colors.dart';
 import 'package:go_router/go_router.dart';
@@ -17,7 +18,7 @@ class StaffDashboardPage extends StatefulWidget {
 }
 
 class _StaffDashboardPageState extends State<StaffDashboardPage> {
-  final storage = const FlutterSecureStorage();
+  final storage = secureStorage;
 
   String outletName = "Loading...";
   String outletAddress = "";

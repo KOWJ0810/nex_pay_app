@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nex_pay_app/core/service/secure_storage.dart';
 import 'package:nex_pay_app/router.dart';
 import 'package:nex_pay_app/models/merchant_registration_data.dart';
 import 'dart:convert';
@@ -22,7 +23,7 @@ class _MerchantConfirmPinPageState extends State<MerchantConfirmPinPage> {
   final TextEditingController _confirmPinController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   String? errorText;
-  final storage = const FlutterSecureStorage();
+  final storage = secureStorage;
   bool isLoading = false;
 
   @override

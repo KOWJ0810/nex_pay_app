@@ -6,6 +6,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
+import 'package:nex_pay_app/core/service/secure_storage.dart';
 
 import 'package:nex_pay_app/router.dart';
 import 'package:nex_pay_app/widgets/nex_merchant_scaffold.dart';
@@ -43,7 +44,7 @@ class _MerchantDashboardPageState extends State<MerchantDashboardPage> {
   static const primaryColor = Color(0xFF102520);
   static const accentColor = Color(0xFFB2DD62);
 
-  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+  final FlutterSecureStorage _secureStorage = secureStorage;
 
   @override
   void initState() {

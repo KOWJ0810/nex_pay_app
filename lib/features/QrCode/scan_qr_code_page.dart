@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:nex_pay_app/core/constants/api_config.dart';
 import 'package:nex_pay_app/core/constants/colors.dart';
+import 'package:nex_pay_app/core/service/secure_storage.dart';
 import 'package:nex_pay_app/router.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
@@ -17,7 +18,7 @@ class ScanQrCodePage extends StatefulWidget {
 
 class _ScanQrCodePageState extends State<ScanQrCodePage> {
   final MobileScannerController _controller = MobileScannerController();
-  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+  final FlutterSecureStorage _secureStorage = secureStorage;
   bool _isProcessing = false;
   bool _hasScanned = false;
 

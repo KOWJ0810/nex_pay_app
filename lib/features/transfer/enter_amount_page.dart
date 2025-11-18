@@ -4,6 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:go_router/go_router.dart';
+import 'package:nex_pay_app/core/service/secure_storage.dart';
 import 'package:nex_pay_app/router.dart';
 import '../../core/constants/api_config.dart';
 import '../../core/constants/colors.dart';
@@ -41,7 +42,7 @@ class EnterAmountPage extends StatefulWidget {
 class _EnterAmountPageState extends State<EnterAmountPage> {
   final _amountController = TextEditingController();
   final _noteController = TextEditingController();
-  final _storage = const FlutterSecureStorage();
+  final _storage = secureStorage;
   bool _isLoading = false;
   String? _errorMessage;
 

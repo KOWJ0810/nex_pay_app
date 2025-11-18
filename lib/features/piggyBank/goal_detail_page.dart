@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:nex_pay_app/core/service/secure_storage.dart';
 import '../../core/constants/colors.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nex_pay_app/router.dart';
@@ -222,7 +223,7 @@ class GoalDetailPage extends StatelessWidget {
                           if (confirmed != true) return;
 
                           try {
-                            final storage = const FlutterSecureStorage();
+                            final storage = secureStorage;
                             final token = await storage.read(key: 'token');
 
                             if (token == null) {

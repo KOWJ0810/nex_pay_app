@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:nex_pay_app/core/service/secure_storage.dart';
 import 'package:nex_pay_app/router.dart';
 import '../../core/constants/colors.dart';
 import '../../core/constants/api_config.dart';
@@ -19,7 +20,7 @@ class MerchantTransactionHistoryPage extends StatefulWidget {
 
 class _MerchantTransactionHistoryPageState
     extends State<MerchantTransactionHistoryPage> {
-  final storage = const FlutterSecureStorage();
+  final storage = secureStorage;
 
   int? selectedOutletId;
   List<Map<String, dynamic>> outlets = [];

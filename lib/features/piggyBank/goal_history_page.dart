@@ -4,6 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nex_pay_app/core/service/secure_storage.dart';
 import '../../core/constants/api_config.dart';
 
 class GoalHistoryPage extends StatefulWidget {
@@ -16,7 +17,7 @@ class GoalHistoryPage extends StatefulWidget {
 }
 
 class _GoalHistoryPageState extends State<GoalHistoryPage> {
-  final storage = const FlutterSecureStorage();
+  final storage = secureStorage;
   bool isLoading = true;
   String? errorMessage;
   List<dynamic> movements = [];

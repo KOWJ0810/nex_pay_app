@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:nex_pay_app/core/service/secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants/colors.dart';
 import '../../widgets/nex_scaffold.dart';
@@ -19,7 +20,7 @@ class DashboardPage extends StatefulWidget {
 }
 
 class _DashboardPageState extends State<DashboardPage> {
-  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+  final FlutterSecureStorage _secureStorage = secureStorage;
 
   String? userName;
   double? balance;
@@ -506,7 +507,7 @@ class _ActionTileState extends State<_ActionTile> {
 }
   Future<void> _handleRequestQr(BuildContext context) async {
   try {
-    final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+    final FlutterSecureStorage _secureStorage = secureStorage;
     final token = await _secureStorage.read(key: 'token');
 
     if (token == null) {

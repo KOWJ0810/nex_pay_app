@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:nex_pay_app/core/service/secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:uuid/uuid.dart';
@@ -34,10 +35,7 @@ class _ConfirmPinPageState extends State<ConfirmPinPage>
   bool _busy = false;
 
   // Secure storage (Android Keystore / iOS Keychain)
-  final FlutterSecureStorage _secure = const FlutterSecureStorage(
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
-    iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
-  );
+  final FlutterSecureStorage _secure = secureStorage;
 
   late final AnimationController _bump;
   late final Animation<double> _scale;
