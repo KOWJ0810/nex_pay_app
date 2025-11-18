@@ -198,8 +198,12 @@ class _LoginPageState extends State<LoginPage> {
       await _secure.write(key: 'phone_number', value: phone);
       await _secure.write(key: 'password', value: pin); // your PIN-as-password
 
+      
+
       // 3) Decide biometric opt-in routing BEFORE device checks
       final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_id', '$backendUserId');
+      
       final bool? localBiometric = prefs.getBool('biometric_enabled');
       final bool? serverBiometric =
           (userObj['biometric_enabled'] is bool) ? userObj['biometric_enabled'] as bool : null;

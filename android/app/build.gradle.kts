@@ -9,9 +9,9 @@ plugins {
 }
 
 android {
-    namespace = "com.example.nex_pay_app"
+    namespace = "com.example.nex_pay_app" 
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    ndkVersion = "27.2.12479018"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -38,6 +38,9 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 }

@@ -9,7 +9,6 @@ import 'package:nex_pay_app/router.dart' show rootNavigatorKey, appRouter, Route
 import 'features/auth/app_lock_gate.dart';
 
 import 'dart:async';
-import 'package:uni_links/uni_links.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -48,21 +47,9 @@ class NexPayAppState extends State<NexPayApp> {
   @override
   void initState() {
     super.initState();
-    _initDeepLinks();
     _startClipboardListener();
   }
 
-  // ============================================================
-  // 🔗 Deep link listener for nexpay:// scheme
-  // ============================================================
-  void _initDeepLinks() async {
-    final initial = await getInitialUri();
-    if (initial != null) _handleUri(initial);
-
-    _sub = uriLinkStream.listen((uri) {
-      if (uri != null) _handleUri(uri);
-    });
-  }
 
   void _handleUri(Uri uri) async {
     // nexpay://pay?to=plink_xxx

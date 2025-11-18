@@ -24,7 +24,11 @@ class BiometricOptInPage extends StatefulWidget {
 class _BiometricOptInPageState extends State<BiometricOptInPage>
     with TickerProviderStateMixin {
   final _auth = LocalAuthentication();
-  final _secure = const FlutterSecureStorage();
+  
+  final _secure = const FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
+  );
 
   bool _deviceSupported = false;
   bool _hasEnrolled = false;
@@ -154,7 +158,7 @@ class _BiometricOptInPageState extends State<BiometricOptInPage>
     try {
       // try secure storage first
       String? userId = await _secure.read(key: 'user_id');
-      String? token = await _secure.read(key: 'auth_token');
+      String? token = await _secure.read(key: 'token');
 
       // fallback to SharedPreferences if missing
       if (userId == null || userId.isEmpty) {
