@@ -40,10 +40,10 @@ class _SearchTransferUserPageState extends State<SearchTransferUserPage> {
         await Future.delayed(const Duration(milliseconds: 500));
         if (!mounted) return;
         context.pushNamed(
-          RouteNames.enterAmount,
+          RouteNames.p2pEnterAmountPage,
           extra: {
-            'user_id': user['user_id'],
-            'user_name': user['user_name'],
+            'userId': user['user_id'],
+            'userName': user['user_name'],
             'phoneNum': phoneNum,
           },
         );
