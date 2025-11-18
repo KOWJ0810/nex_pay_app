@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nex_pay_app/features/auth/security_fallback_page.dart';
+import 'package:nex_pay_app/features/changePassword/cp_success_page.dart';
 import 'package:nex_pay_app/features/onboarding/biometric_opt_in_page.dart';
 import 'package:nex_pay_app/features/onboarding/setup_security_questions_page.dart';
 import 'package:nex_pay_app/features/outlet/merchant_add_staff_page.dart';
@@ -94,6 +95,14 @@ import 'package:nex_pay_app/features/paymentLink/payment_link_preview_page.dart'
 import 'package:nex_pay_app/features/paymentLink/outlet_list_payment_link_page.dart';
 import 'package:nex_pay_app/features/paymentLink/payment_link_success_page.dart';
 import 'package:nex_pay_app/features/QrCode/outlet_list_qr_code_page.dart';
+import 'package:nex_pay_app/features/changePassword/cp_enter_current_pin_page.dart';
+import 'package:nex_pay_app/features/changePassword/cp_enter_new_pin_page.dart';
+import 'package:nex_pay_app/features/changePassword/cp_confirm_new_pin_page.dart';
+import 'package:nex_pay_app/features/changePassword/cp_verify_otp_page.dart';
+import 'package:nex_pay_app/features/changePassword/cp_success_page.dart';
+import 'package:nex_pay_app/features/transaction/transaction_limit_page.dart';
+import 'package:nex_pay_app/features/transfer/p2p_enter_amount_page.dart';
+import 'package:nex_pay_app/features/transfer/p2p_transfer_success_page.dart';
 
 class RouteNames {
   static const splash = 'splash';
@@ -184,6 +193,14 @@ class RouteNames {
   static const outletListPaymentLink = 'outlet-list-payment-link';
   static const paymentLinkSuccess = 'payment-link-success';
   static const outletListQrCode = 'outlet-list-qr-code';
+  static const cpEnterCurrentPin = 'cp-enter-current-pin';
+  static const cpEnterNewPin = 'cp-enter-new-pin';
+  static const cpConfirmNewPin = 'cp-confirm-new-pin';
+  static const cpSuccess = 'cp-success';
+  static const cpVerifyOTP = 'cp-verify-otp';
+  static const transactionLimit = 'transaction-limit';
+  static const p2pEnterAmountPage = 'p2p-enter-amount-page';
+  static const p2pTransferSuccess = 'p2p-transfer-success';
 }
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -998,6 +1015,90 @@ final GoRouter appRouter = GoRouter(
       path: '/outlet-list-qr-code',
       builder: (ctx, st) {
         return const OutletListQrCodePage();
+      },
+    ),
+    GoRoute(
+      name: RouteNames.cpEnterCurrentPin,
+      path: '/cp-enter-current-pin',
+      builder: (ctx, st) {
+        return const CPEnterCurrentPinPage();
+      },
+    ),
+    GoRoute(
+      name: RouteNames.cpEnterNewPin,
+      path: '/cp-enter-new-pin',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        return CPEnterNewPinPage(
+          currentPin: extras['currentPin'] as String,
+        );
+      },
+    ),
+    GoRoute(
+      name: RouteNames.cpConfirmNewPin,
+      path: '/cp-confirm-new-pin',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        return CPConfirmNewPinPage(
+          currentPin: extras['currentPin'] as String,
+          newPin: extras['newPin'] as String,
+        );
+      },
+    ),
+    GoRoute(
+      name: RouteNames.cpSuccess,
+      path: '/cp-success',
+      builder: (ctx, st) {
+        return const CPSuccessPage();
+      },
+    ),
+    GoRoute(
+      name: RouteNames.cpVerifyOTP,
+      path: '/cp-verify-otp',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        return CPVerifyOTPPage(
+          currentPin: extras['currentPin'] as String,
+          newPin: extras['newPin'] as String,
+        );
+      },
+    ),
+    GoRoute(
+      name: RouteNames.transactionLimit,
+      path: '/transaction-limit',
+      builder: (ctx, st) {
+        return const TransactionLimitPage();
+      },
+    ),
+    GoRoute(
+      name: RouteNames.p2pEnterAmountPage,
+      path: '/p2p-enter-amount',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        return P2PEnterAmountPage(
+          userId: extras['userId'] as int?,
+          userName: extras['userName'] as String?,
+          phoneNum: extras['phoneNum'] as String?,
+        );
+      },
+    ),
+    GoRoute(
+      name: RouteNames.p2pTransferSuccess,
+      path: '/p2p-transfer-success',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        return P2PTransferSuccessPage(
+          transactionId: extras['transactionId'] as int?,
+          transactionRefNum: extras['transactionRefNum'] as String?,
+          amount: extras['amount'] as double?,
+          fromUserId: extras['fromUserId'] as int?,
+          toUserId: extras['toUserId'] as int?,
+          fromBalanceAfter: extras['fromBalanceAfter'] as double?,
+          toBalanceAfter: extras['toBalanceAfter'] as double?,
+          at: extras['at'] as String?,
+          receiverName: extras['receiverName'] as String?,
+          receiverPhone: extras['receiverPhone'] as String?,
+        );
       },
     ),
   ],

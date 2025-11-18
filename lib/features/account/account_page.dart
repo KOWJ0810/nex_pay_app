@@ -264,7 +264,7 @@ class _AccountPageState extends State<AccountPage> {
                       _NavTile(
                         icon: Icons.shield_rounded,
                         title: 'Change PIN / Password',
-                        onTap: _onChangePin,
+                        onTap: () => context.pushNamed(RouteNames.cpEnterCurrentPin),
                       ),
                       _NavTile(
                         icon: Icons.devices_other_rounded,
@@ -276,6 +276,11 @@ class _AccountPageState extends State<AccountPage> {
                         icon: Icons.wallet_rounded,
                         title: 'Emergency Wallet',
                         onTap: () => context.pushNamed(RouteNames.emergencyWallet),
+                      ),
+                      _NavTile(
+                        icon: Icons.money_off_rounded,
+                        title: 'Transaction Limit',
+                        onTap: () => context.pushNamed(RouteNames.transactionLimit),
                       ),
                     ]),
 
