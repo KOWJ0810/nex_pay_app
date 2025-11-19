@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:go_router/go_router.dart';
+import 'package:nex_pay_app/core/service/secure_storage.dart';
 
 import '../../core/constants/api_config.dart';
 import '../../router.dart';
@@ -174,7 +175,7 @@ class _CPEnterCurrentPinPageState extends State<CPEnterCurrentPinPage> {
     });
 
     try {
-      const storage = FlutterSecureStorage();
+      const storage = secureStorage;
       final authToken = await storage.read(key: "token");
 
       if (authToken == null) {

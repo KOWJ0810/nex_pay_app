@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
+import 'package:nex_pay_app/core/service/secure_storage.dart';
 import 'package:nex_pay_app/router.dart';
 import '../../core/constants/api_config.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -212,7 +213,7 @@ class _AddRelationshipPageState extends State<AddRelationshipPage> {
                   child: ElevatedButton(
                     onPressed: userSelected
                       ? () async {
-                          const storage = FlutterSecureStorage();
+                          const storage = secureStorage;
                           final currentUserIdStr = await storage.read(key: 'user_id');
                           if (currentUserIdStr == null) {
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -347,7 +348,7 @@ class _AddRelationshipPageState extends State<AddRelationshipPage> {
   required int senderUserId,
   required int receiverUserId,
 }) async {
-  const storage = FlutterSecureStorage();
+  const storage = secureStorage;
   final token = await storage.read(key: 'token');
 
   final body = {

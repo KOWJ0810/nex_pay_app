@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nex_pay_app/core/service/secure_storage.dart';
 import 'package:nex_pay_app/router.dart';
 import 'package:intl/intl.dart';
 import 'package:nex_pay_app/core/constants/colors.dart';
@@ -32,7 +33,7 @@ class _AllSchedulePageState extends State<AllSchedulePage> {
       isLoading = true;
     });
     try {
-      const storage = FlutterSecureStorage();
+      const storage = secureStorage;
       final token = await storage.read(key: 'token');
 
       if (token == null || token.isEmpty) {
@@ -115,7 +116,7 @@ class _AllSchedulePageState extends State<AllSchedulePage> {
     if (confirmed != true) return;
 
     try {
-      const storage = FlutterSecureStorage();
+      const storage = secureStorage;
       final token = await storage.read(key: 'token');
       if (token == null || token.isEmpty) {
         throw Exception('Missing auth token');

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nex_pay_app/core/service/secure_storage.dart';
 import 'package:nex_pay_app/router.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -38,7 +39,7 @@ class _SenderVerificationPageState extends State<SenderVerificationPage> {
 
   void _onSubmit() async {
     final enteredCode = _controllers.map((c) => c.text).join();
-    const storage = FlutterSecureStorage();
+    const storage = secureStorage;
     final token = await storage.read(key: 'token');
 
     if (token == null) {

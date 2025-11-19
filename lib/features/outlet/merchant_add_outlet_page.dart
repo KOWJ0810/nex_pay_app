@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:nex_pay_app/core/service/secure_storage.dart';
 import '../../core/constants/api_config.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/colors.dart';
@@ -147,7 +148,7 @@ class _MerchantAddOutletPageState extends State<MerchantAddOutletPage> {
     setState(() => _isSubmitting = true);
 
     try {
-      const storage = FlutterSecureStorage();
+      const storage = secureStorage;
       final token = await storage.read(key: 'token');
 
       if (token == null) {

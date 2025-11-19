@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:nex_pay_app/core/service/secure_storage.dart';
 import '../../core/constants/api_config.dart';
 import 'package:flutter/material.dart';
 import '../../core/constants/colors.dart';
@@ -32,7 +33,7 @@ class _MerchantOutletDetailPageState extends State<MerchantOutletDetailPage> {
   }
 
   Future<void> _fetchOutletDetails() async {
-    const storage = FlutterSecureStorage();
+    const storage = secureStorage;
     final token = await storage.read(key: "token");
 
     try {
@@ -58,7 +59,7 @@ class _MerchantOutletDetailPageState extends State<MerchantOutletDetailPage> {
   }
 
   Future<void> _fetchStaffList() async {
-    const storage = FlutterSecureStorage();
+    const storage = secureStorage;
     final token = await storage.read(key: "token");
 
     try {
@@ -279,7 +280,7 @@ class _MerchantOutletDetailPageState extends State<MerchantOutletDetailPage> {
                                   ),
                                 );
                                 if (confirm == true) {
-                                  const storage = FlutterSecureStorage();
+                                  const storage = secureStorage;
                                   final token = await storage.read(key: "token");
 
                                   final url = "${ApiConfig.baseUrl}/merchants/outlets/${widget.outletId}/staff/${staff["userId"]}";

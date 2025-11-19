@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nex_pay_app/core/constants/colors.dart';
+import 'package:nex_pay_app/core/service/secure_storage.dart';
 import 'package:nex_pay_app/router.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -38,7 +39,7 @@ class _MerchantScanQrCodePageState extends State<MerchantScanQrCodePage> {
       _isScanning = false;
     });
 
-    const storage = FlutterSecureStorage();
+    const storage = secureStorage;
     final token = await storage.read(key: 'token');
     if (token == null) {
       ScaffoldMessenger.of(context).showSnackBar(
