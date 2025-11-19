@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
+import 'package:nex_pay_app/core/service/secure_storage.dart';
 import '../../core/constants/api_config.dart';
 import '../../core/constants/colors.dart';
 import '../../router.dart';
@@ -287,7 +288,7 @@ class _MerchantAddStaffPageState extends State<MerchantAddStaffPage> {
   Future<void> _addStaff() async {
     if (userData == null) return;
 
-    const storage = FlutterSecureStorage();
+    const storage = secureStorage;
     final token = await storage.read(key: 'token');
 
     final body = {

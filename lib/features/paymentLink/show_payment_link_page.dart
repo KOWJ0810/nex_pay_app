@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:nex_pay_app/core/service/secure_storage.dart';
 
 import '../../core/constants/api_config.dart';
 import 'package:nex_pay_app/router.dart';      // for rootNavigatorKey
@@ -37,7 +38,7 @@ class _ShowPaymentLinkPageState extends State<ShowPaymentLinkPage> {
     setState(() => isLoading = true);
 
     try {
-      const storage = FlutterSecureStorage();
+      const storage = secureStorage;
       final token = await storage.read(key: 'token');
 
       final url =

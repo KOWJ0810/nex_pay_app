@@ -401,7 +401,7 @@ class _AccountPageState extends State<AccountPage> {
       await prefs.setString('device_id', deviceId);
     }
 
-    const secure = FlutterSecureStorage();
+    const secure = secureStorage;
     await secure.deleteAll();
 
     _toast('Signed out');

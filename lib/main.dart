@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
+import 'package:nex_pay_app/core/service/secure_storage.dart';
 
 import 'firebase_options.dart';
 import 'package:nex_pay_app/router.dart' show rootNavigatorKey, appRouter, RouteNames;
@@ -54,7 +55,7 @@ class NexPayAppState extends State<NexPayApp> {
   void _handleUri(Uri uri) async {
     // nexpay://pay?to=plink_xxx
     if (uri.scheme == "nexpay" && uri.host == "pay") {
-      final storage = const FlutterSecureStorage();
+      final storage = secureStorage;
       final loginToken = await storage.read(key: "token");
       if (loginToken == null || loginToken.isEmpty) return;
 

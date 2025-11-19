@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nex_pay_app/core/service/secure_storage.dart';
 import 'package:nex_pay_app/router.dart';
 import '../../core/constants/api_config.dart';
 
@@ -152,7 +153,7 @@ class _EmergTransactionLimitPageState extends State<EmergTransactionLimitPage> {
     final dailyLimit = double.parse(_dailyLimitController.text);
     final perTransaction = double.parse(_perTransactionController.text);
 
-    const storage = FlutterSecureStorage();
+    const storage = secureStorage;
     final token = await storage.read(key: 'token');
 
     if (token == null) {

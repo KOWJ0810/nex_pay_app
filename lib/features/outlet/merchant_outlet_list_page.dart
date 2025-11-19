@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:nex_pay_app/core/service/secure_storage.dart';
 import '../../core/constants/colors.dart';
 import '../../core/constants/api_config.dart';
 import 'package:go_router/go_router.dart';
@@ -25,7 +26,7 @@ class _MerchantOutletListPageState extends State<MerchantOutletListPage> {
   }
 
   Future<void> _fetchOutlets() async {
-    const storage = FlutterSecureStorage();
+    const storage = secureStorage;
     final token = await storage.read(key: 'token');
     final res = await http.get(
       Uri.parse('${ApiConfig.baseUrl}/merchants/outlets'),
@@ -181,7 +182,7 @@ class _MerchantOutletListPageState extends State<MerchantOutletListPage> {
                                                                 onPressed: () async {
                                                                   Navigator.pop(context); // close dialog first
 
-                                                                  const storage = FlutterSecureStorage();
+                                                                  const storage = secureStorage;
                                                                   final token = await storage.read(key: 'token');
                                                                   final outletId = outlet['outletId'];
 

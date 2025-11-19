@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
+import 'package:nex_pay_app/core/service/secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/constants/colors.dart';
@@ -37,10 +38,7 @@ class SecurityQuestionsFallbackPage extends StatefulWidget {
 
 class _SecurityQuestionsFallbackPageState
     extends State<SecurityQuestionsFallbackPage> {
-  static const FlutterSecureStorage _secure = FlutterSecureStorage(
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
-    iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
-  );
+  static const FlutterSecureStorage _secure = secureStorage;
 
   bool _loading = true;
   bool _submitting = false;
