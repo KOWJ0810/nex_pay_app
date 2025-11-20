@@ -54,80 +54,190 @@ class _EnterAmountPageState extends State<EnterAmountPage> {
   }
 
   Future<void> _sendTransfer() async {
-    setState(() {
-      _errorMessage = null;
-    });
+  setState(() {
+    _errorMessage = null;
+  });
 
-    final amountText = _amountController.text.trim();
-    if (amountText.isEmpty) {
-      setState(() => _errorMessage = 'Please enter an amount.');
-      return;
-    }
-    final amount = double.tryParse(amountText);
-    if (amount == null || amount <= 0) {
-      setState(() => _errorMessage = 'Please enter a valid amount.');
-      return;
-    }
+  final amountText = _amountController.text.trim();
+  if (amountText.isEmpty) {
+    setState(() => _errorMessage = 'Please enter an amount.');
+    return;
+  }
 
-    final note = _noteController.text.trim();
-    setState(() => _isLoading = true);
+  final amount = double.tryParse(amountText);
+  if (amount == null || amount <= 0) {
+    setState(() => _errorMessage = 'Please enter a valid amount.');
+    return;
+  }
 
-    try {
-      final token = await _storage.read(key: 'token');
-      if (token == null) {
-        setState(() {
-          _errorMessage = 'Authentication token not found.';
-          _isLoading = false;
-        });
-        return;
-      }
+  final note = _noteController.text.trim();
+  setState(() => _isLoading = true);
 
-      final url = Uri.parse('${ApiConfig.baseUrl}/qr/pay');
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode({
-          'qrPayload': widget.qrPayload ?? '',
-          'amount': amount,
-          'note': note,
-        }),
-      );
-
-      final data = jsonDecode(response.body);
-      if (response.statusCode == 200 && data['success'] == true) {
-        final tx = data['data'];
-
-        setState(() => _isLoading = false);
-        context.pushNamed(
-          RouteNames.transferSuccess,
-          extra: {
-            'type': tx['type'],
-            'transactionId': tx['transactionId'],
-            'transactionRefNum': tx['transactionRefNum'],
-            'amount': tx['amount'],
-            'status': tx['status'],
-            'senderUserId': tx['senderUserId'],
-            'receiverUserId': tx['receiverUserId'],
-            'merchantId': tx['merchantId'],
-            'outletId': tx['outletId'],
-          },
-        );
-      } else {
-        setState(() {
-          _errorMessage = data['message'] ?? 'Transfer failed.';
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
+  try {
+    final token = await _storage.read(key: 'token');
+    if (token == null) {
       setState(() {
-        _errorMessage = 'An error occurred: $e';
+        _errorMessage = 'Authentication token not found.';
         _isLoading = false;
       });
+      return;
     }
+
+    final url = Uri.parse('${ApiConfig.baseUrl}/qr/pay');
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'qrPayload': widget.qrPayload ?? '',
+        'amount': amount,
+        'note': note,
+      }),
+    );
+
+    final data = jsonDecode(response.body);
+
+    // -----------------------------
+    // 🚨 1. Check for INSIDE ERROR MESSAGE
+    // -----------------------------
+    if (data['success'] != true) {
+      final msg = data['message']?.toString() ?? 'Transfer failed.';
+      setState(() {
+        _errorMessage = msg;
+        _isLoading = false;
+      });
+
+      // --------------------------------------------------
+      //  CONDITION: insufficient balance + MERCHANT_OUTLET
+      // --------------------------------------------------
+      if (msg.toLowerCase().contains("insufficient") &&
+          widget.type == "MERCHANT_OUTLET") {
+        _triggerEmergencyWalletFlow(amount);
+      }
+
+      return;
+    }
+
+    // -----------------------------
+    // SUCCESS → redirect
+    // -----------------------------
+    final tx = data['data'];
+    setState(() => _isLoading = false);
+
+    context.pushNamed(
+      RouteNames.transferSuccess,
+      extra: {
+        'type': tx['type'],
+        'transactionId': tx['transactionId'],
+        'transactionRefNum': tx['transactionRefNum'],
+        'amount': tx['amount'],
+        'status': tx['status'],
+        'senderUserId': tx['senderUserId'],
+        'receiverUserId': tx['receiverUserId'],
+        'merchantId': tx['merchantId'],
+        'outletId': tx['outletId'],
+      },
+    );
+  } catch (e) {
+    setState(() {
+      _errorMessage = 'An error occurred: $e';
+      _isLoading = false;
+    });
   }
+}
+
+Future<void> _triggerEmergencyWalletFlow(double amount) async {
+  final token = await _storage.read(key: 'token');
+  if (token == null) return;
+
+  try {
+    // ======================================================
+    // STEP 1 — Get emergency sender info
+    // ======================================================
+    final pairingRes = await http.get(
+      Uri.parse("${ApiConfig.baseUrl}/emergency-wallet/pairings/my-sender"),
+      headers: {"Authorization": "Bearer $token"},
+    );
+
+    final pairingJson = jsonDecode(pairingRes.body);
+    if (pairingJson["success"] != true) return;
+
+    final pairing = pairingJson["data"];
+    final pairingId = pairing["pairingId"];
+
+    // ======================================================
+    // STEP 2 — Ask user: Want to use emergency wallet?
+    // ======================================================
+    if (!mounted) return;
+
+    final shouldPay = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Insufficient Balance"),
+        content: Text(
+            "Would you like to pay using your emergency sender (${pairing['partner']['name']})?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Use Emergency Wallet"),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldPay != true) return;
+
+    // ======================================================
+    // STEP 3 — Call emergency payment API
+    // ======================================================
+    final payRes = await http.post(
+      Uri.parse("${ApiConfig.baseUrl}/emergency-wallet/payments"),
+      headers: {
+        "Authorization": "Bearer $token",
+        "Content-Type": "application/json",
+      },
+      body: jsonEncode({
+        "pairingId": pairingId,
+        "amount": amount,
+        "qrPayload": widget.qrPayload ?? "",
+      }),
+    );
+
+    final payJson = jsonDecode(payRes.body);
+
+    if (payJson["success"] == true) {
+      final d = payJson["data"];
+
+      if (!mounted) return;
+
+      context.pushNamed(
+        RouteNames.emergencyTransferSuccess,
+        extra: {
+          "paymentId": d["paymentId"],
+          "paymentStatus": d["paymentStatus"],
+          "transactionId": d["transactionId"],
+          "transactionRefNum": d["transactionRefNum"],
+          "amount": d["amount"],
+          "senderUserId": d["senderUserId"],
+          "receiverUserId": d["receiverUserId"],
+          "merchantId": d["merchantId"],
+          "outletId": d["outletId"],
+          "merchantName": d["merchantName"],
+          "outletName": d["outletName"],
+          "transactionDateTime": d["transactionDateTime"],
+        },
+      );
+    }
+  } catch (e) {
+    print("Emergency wallet error: $e");
+  }
+}
 
   @override
   Widget build(BuildContext context) {

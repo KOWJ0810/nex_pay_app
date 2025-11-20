@@ -104,6 +104,7 @@ import 'package:nex_pay_app/features/changePassword/cp_success_page.dart';
 import 'package:nex_pay_app/features/transaction/transaction_limit_page.dart';
 import 'package:nex_pay_app/features/transfer/p2p_enter_amount_page.dart';
 import 'package:nex_pay_app/features/transfer/p2p_transfer_success_page.dart';
+import 'package:nex_pay_app/features/wallet/emergency_transfer_success_page.dart';
 
 class RouteNames {
   static const splash = 'splash';
@@ -202,6 +203,7 @@ class RouteNames {
   static const transactionLimit = 'transaction-limit';
   static const p2pEnterAmountPage = 'p2p-enter-amount-page';
   static const p2pTransferSuccess = 'p2p-transfer-success';
+  static const emergencyTransferSuccess = 'emergency-transfer-success';
 }
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -1099,6 +1101,16 @@ final GoRouter appRouter = GoRouter(
           at: extras['at'] as String?,
           receiverName: extras['receiverName'] as String?,
           receiverPhone: extras['receiverPhone'] as String?,
+        );
+      },
+    ),
+    GoRoute(
+      name: RouteNames.emergencyTransferSuccess,
+      path: '/emergency-transfer-success',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        return EmergencyTransferSuccessPage(
+          data: extras,
         );
       },
     ),
