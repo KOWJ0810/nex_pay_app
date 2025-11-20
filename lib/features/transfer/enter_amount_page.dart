@@ -168,7 +168,7 @@ Future<void> _triggerEmergencyWalletFlow(double amount) async {
     final pairingId = pairing["pairingId"];
 
     // ======================================================
-    // STEP 2 — Ask user: Want to use emergency wallet?
+    // STEP 2 — Ask user if they want to use emergency wallet
     // ======================================================
     if (!mounted) return;
 
@@ -177,13 +177,15 @@ Future<void> _triggerEmergencyWalletFlow(double amount) async {
       builder: (context) => AlertDialog(
         title: const Text("Insufficient Balance"),
         content: Text(
-            "Would you like to pay using your emergency sender (${pairing['partner']['name']})?"),
+          "Would you like to pay using your emergency sender (${pairing['partner']['name']})?",
+        ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
             child: const Text("Cancel"),
+            onPressed: () => Navigator.pop(context, false),
           ),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
             onPressed: () => Navigator.pop(context, true),
             child: const Text("Use Emergency Wallet"),
           ),
@@ -211,31 +213,73 @@ Future<void> _triggerEmergencyWalletFlow(double amount) async {
 
     final payJson = jsonDecode(payRes.body);
 
-    if (payJson["success"] == true) {
-      final d = payJson["data"];
+    // -----------------------------
+    // ❌ FAILURE HANDLING
+    // -----------------------------
+    if (payRes.statusCode != 200 || payJson["success"] != true) {
+      final msg = payJson["message"]?.toString() ??
+          "Emergency payment failed. (Code ${payRes.statusCode})";
 
       if (!mounted) return;
 
-      context.pushNamed(
-        RouteNames.emergencyTransferSuccess,
-        extra: {
-          "paymentId": d["paymentId"],
-          "paymentStatus": d["paymentStatus"],
-          "transactionId": d["transactionId"],
-          "transactionRefNum": d["transactionRefNum"],
-          "amount": d["amount"],
-          "senderUserId": d["senderUserId"],
-          "receiverUserId": d["receiverUserId"],
-          "merchantId": d["merchantId"],
-          "outletId": d["outletId"],
-          "merchantName": d["merchantName"],
-          "outletName": d["outletName"],
-          "transactionDateTime": d["transactionDateTime"],
-        },
+      await showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text("Payment Failed"),
+          content: Text(msg),
+          actions: [
+            TextButton(
+              child: const Text("OK"),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ],
+        ),
       );
+
+      return;
     }
+
+    // -----------------------------
+    // ✅ SUCCESS — redirect
+    // -----------------------------
+    final d = payJson["data"];
+    if (!mounted) return;
+
+    context.pushNamed(
+      RouteNames.emergencyTransferSuccess,
+      extra: {
+        "paymentId": d["paymentId"],
+        "paymentStatus": d["paymentStatus"],
+        "transactionId": d["transactionId"],
+        "transactionRefNum": d["transactionRefNum"],
+        "amount": d["amount"],
+        "senderUserId": d["senderUserId"],
+        "receiverUserId": d["receiverUserId"],
+        "merchantId": d["merchantId"],
+        "outletId": d["outletId"],
+        "merchantName": d["merchantName"],
+        "outletName": d["outletName"],
+        "transactionDateTime": d["transactionDateTime"],
+      },
+    );
   } catch (e) {
     print("Emergency wallet error: $e");
+
+    if (!mounted) return;
+
+    await showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Unexpected Error"),
+        content: Text(e.toString()),
+        actions: [
+          TextButton(
+            child: const Text("OK"),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ],
+      ),
+    );
   }
 }
 
