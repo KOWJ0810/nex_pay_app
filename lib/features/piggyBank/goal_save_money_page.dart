@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:nex_pay_app/core/service/secure_storage.dart';
 import '../../router.dart' show RouteNames;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // For TextInputFormatter
 import '../../core/constants/colors.dart';
 import '../../core/constants/api_config.dart';
 
@@ -24,8 +25,21 @@ class _GoalSaveMoneyPageState extends State<GoalSaveMoneyPage> {
 
   bool _isSubmitting = false;
 
+  // Quick Add Options
+  final List<int> _quickAmounts = [10, 50, 100];
+
+  void _addAmount(int amount) {
+    double current = double.tryParse(_amountController.text) ?? 0;
+    setState(() {
+      _amountController.text = (current + amount).toStringAsFixed(0);
+    });
+  }
+
   Future<void> _submitSave() async {
     if (!_formKey.currentState!.validate()) return;
+    
+    // Dismiss keyboard
+    FocusScope.of(context).unfocus();
 
     setState(() => _isSubmitting = true);
     final storage = secureStorage;
@@ -33,15 +47,13 @@ class _GoalSaveMoneyPageState extends State<GoalSaveMoneyPage> {
     try {
       final token = await storage.read(key: 'token');
       if (token == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Session expired. Please sign in again.")),
-        );
-        setState(() => _isSubmitting = false);
+        if(mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Session expired.")));
+        }
         return;
       }
 
-      final url = Uri.parse(
-          '${ApiConfig.baseUrl}/piggy-banks/${widget.piggyBankId}/deposit');
+      final url = Uri.parse('${ApiConfig.baseUrl}/piggy-banks/${widget.piggyBankId}/deposit');
 
       final response = await http.post(
         url,
@@ -51,207 +63,187 @@ class _GoalSaveMoneyPageState extends State<GoalSaveMoneyPage> {
         },
         body: jsonEncode({
           'amount': double.parse(_amountController.text),
-          'reason': _reasonController.text.isEmpty
-              ? null
-              : _reasonController.text,
+          'reason': _reasonController.text.isEmpty ? null : _reasonController.text,
         }),
       );
 
       if (response.statusCode == 200) {
         final jsonRes = jsonDecode(response.body);
         if (jsonRes['success'] == true) {
-          context.goNamed(
-            RouteNames.saveMoneySuccess,
-            extra: {
-              'piggy_bank_id': widget.piggyBankId,
-              'amount': double.parse(_amountController.text),
-              'reason': _reasonController.text,
-            },
-          );
+          if(mounted) {
+            context.goNamed(
+              RouteNames.saveMoneySuccess,
+              extra: {
+                'piggy_bank_id': widget.piggyBankId,
+                'amount': double.parse(_amountController.text),
+                'reason': _reasonController.text,
+              },
+            );
+          }
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(jsonRes['message'] ?? 'Failed to save money')),
-          );
+          if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(jsonRes['message'] ?? 'Failed')));
         }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: ${response.statusCode}")),
-        );
+        if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: ${response.statusCode}")));
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
-      );
+      if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
     } finally {
-      setState(() => _isSubmitting = false);
+      if(mounted) setState(() => _isSubmitting = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade100,
+      backgroundColor: primaryColor, // Dark background for the top half
+      appBar: AppBar(
+        backgroundColor: primaryColor,
+        elevation: 0,
+        leading: IconButton(
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), shape: BoxShape.circle),
+            child: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18),
+          ),
+          onPressed: () => context.pop(),
+        ),
+        title: const Text("Add Funds", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        centerTitle: true,
+      ),
       body: Column(
         children: [
-          // Gradient Header
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.only(top: 70, bottom: 40),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  primaryColor,
-                  primaryColor.withOpacity(.85),
-                  accentColor.withOpacity(.9),
-                ],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                )
-              ],
-            ),
-            child: Column(
-              children: const [
-                Text(
-                  "💰 Save Into Goal",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
+          // ─── TOP SECTION: AMOUNT INPUT ──────────────────────────────────────
+          Expanded(
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    "How much to save?",
+                    style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 16),
                   ),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  "Enter the amount and reason below",
-                  style: TextStyle(color: Colors.white70, fontSize: 14),
-                ),
-              ],
+                  const SizedBox(height: 20),
+                  // The "Big Money" Input
+                  IntrinsicWidth(
+                    child: TextFormField(
+                      controller: _amountController,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 48, 
+                        fontWeight: FontWeight.w800, 
+                        color: Colors.white,
+                        letterSpacing: -1,
+                      ),
+                      cursorColor: accentColor,
+                      decoration: InputDecoration(
+                        prefixText: "RM ",
+                        prefixStyle: TextStyle(
+                          fontSize: 28, 
+                          fontWeight: FontWeight.w600, 
+                          color: Colors.white.withOpacity(0.5)
+                        ),
+                        border: InputBorder.none,
+                        hintText: "0",
+                        hintStyle: TextStyle(color: Colors.white.withOpacity(0.2)),
+                      ),
+                      inputFormatters: [
+                         FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')), // Digits only
+                      ],
+                      onChanged: (val) => setState(() {}), // Rebuild to update button state
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
 
-          // Form Section
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Form(
-                key: _formKey,
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        "Amount to Save",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      TextFormField(
-                        controller: _amountController,
-                        keyboardType:
-                            const TextInputType.numberWithOptions(decimal: true),
-                        decoration: InputDecoration(
-                          hintText: "Enter amount in RM",
-                          filled: true,
-                          fillColor: Colors.grey.shade50,
-                          border: OutlineInputBorder(
+          // ─── BOTTOM SECTION: DETAILS & ACTION ──────────────────────────────
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+            ),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min, // Hug content
+                children: [
+                  
+                  // 1. Quick Amounts
+                  const Text("Quick Add", style: TextStyle(fontWeight: FontWeight.bold, color: primaryColor)),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: _quickAmounts.map((amount) {
+                      return GestureDetector(
+                        onTap: () => _addAmount(amount),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF4F6F5),
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: Colors.grey.shade300),
+                            border: Border.all(color: Colors.grey.shade200),
                           ),
-                          prefixIcon: const Icon(Icons.attach_money_rounded,
-                              color: Colors.grey),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return "Please enter an amount";
-                          }
-                          final amount = double.tryParse(value);
-                          if (amount == null || amount <= 0) {
-                            return "Enter a valid positive number";
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 24),
-                      const Text(
-                        "Reason (Optional)",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      TextFormField(
-                        controller: _reasonController,
-                        maxLines: 3,
-                        decoration: InputDecoration(
-                          hintText:
-                              "E.g. Monthly saving, emergency fund, bonus deposit...",
-                          filled: true,
-                          fillColor: Colors.grey.shade50,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: Colors.grey.shade300),
+                          child: Text(
+                            "+ RM $amount",
+                            style: const TextStyle(color: primaryColor, fontWeight: FontWeight.w600),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 32),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 55,
-                        child: ElevatedButton.icon(
-                          onPressed: _isSubmitting ? null : _submitSave,
-                          icon: _isSubmitting
-                              ? const SizedBox(
-                                  height: 18,
-                                  width: 18,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Icon(Icons.savings_rounded,
-                                  color: Colors.white),
-                          label: Text(
-                            _isSubmitting ? "Saving..." : "Confirm Save",
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: primaryColor,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            elevation: 3,
-                          ),
-                        ),
-                      ),
-                    ],
+                      );
+                    }).toList(),
                   ),
-                ),
+
+                  const SizedBox(height: 24),
+
+                  // 2. Reason Input
+                  const Text("Note (Optional)", style: TextStyle(fontWeight: FontWeight.bold, color: primaryColor)),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _reasonController,
+                    decoration: InputDecoration(
+                      hintText: "E.g. Monthly deposit",
+                      hintStyle: TextStyle(color: Colors.grey[400]),
+                      filled: true,
+                      fillColor: const Color(0xFFF4F6F5),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide.none,
+                      ),
+                      prefixIcon: Icon(Icons.edit_note_rounded, color: Colors.grey[500]),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    ),
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  // 3. Confirm Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 58,
+                    child: ElevatedButton(
+                      onPressed: (_isSubmitting || _amountController.text.isEmpty) ? null : _submitSave,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primaryColor,
+                        disabledBackgroundColor: Colors.grey[300],
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        elevation: 0,
+                      ),
+                      child: _isSubmitting 
+                        ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : const Text(
+                            "Confirm Deposit",
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
+                    ),
+                  ),
+                  
+                  // Handle keyboard overlapping
+                  SizedBox(height: MediaQuery.of(context).viewInsets.bottom > 0 ? 20 : 0),
+                ],
               ),
             ),
           ),
