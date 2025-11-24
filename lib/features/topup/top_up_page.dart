@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // For Haptics
 import 'package:go_router/go_router.dart';
 import 'package:nex_pay_app/core/service/secure_storage.dart';
 import 'package:nex_pay_app/router.dart';
-import '../../widgets/custom_pin_keyboard.dart';
+import '../../widgets/custom_pin_keyboard.dart'; // Your provided keyboard
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../../core/constants/api_config.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../../core/constants/colors.dart'; // Ensure this exists
 
 class TopUpPage extends StatefulWidget {
   const TopUpPage({super.key});
@@ -18,11 +20,14 @@ class TopUpPage extends StatefulWidget {
 
 class _TopUpPageState extends State<TopUpPage> {
   final FlutterSecureStorage _secureStorage = secureStorage;
-  String _amount = '';
-  String _rawInput = '';
+
+  // State
+  String _amount = '0.00';
+  String _rawInput = ''; // Keeps track of keystrokes "123" -> 1.23
   double? balance;
   int? userId;
   String? token;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -41,22 +46,23 @@ class _TopUpPageState extends State<TopUpPage> {
     });
   }
 
+  // ─── Input Logic ─────────────────────────────────────────────────────────────
+
   void _onKeyTap(String value) {
-    setState(() {
-      if (_rawInput.length < 6 && RegExp(r'\d').hasMatch(value)) {
+    if (_rawInput.length < 9) { // Prevent unrealistic amounts
+      setState(() {
+        if (_rawInput == '0') _rawInput = '';
         _rawInput += value;
-        double parsed = double.parse(_rawInput) / 100;
-        _amount = parsed.toStringAsFixed(2);
-      }
-    });
+        _updateAmountString();
+      });
+    }
   }
 
   void _onBackspace() {
     if (_rawInput.isNotEmpty) {
       setState(() {
         _rawInput = _rawInput.substring(0, _rawInput.length - 1);
-        double parsed = _rawInput.isEmpty ? 0.0 : double.parse(_rawInput) / 100;
-        _amount = parsed.toStringAsFixed(2);
+        _updateAmountString();
       });
     }
   }
@@ -64,225 +70,241 @@ class _TopUpPageState extends State<TopUpPage> {
   void _onClear() {
     setState(() {
       _rawInput = '';
-      _amount = '';
+      _amount = '0.00';
     });
   }
 
-  Future<void> _onProceed() async {
-  if (_amount.isEmpty) return;
-
-  final amountInCents = (double.parse(_amount) * 100).round();
-
-  try {
-    // 🔒 Step 1: Validate auth token before calling backend
-    if (token == null || token!.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Session expired. Please sign in again.'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
-      return;
+  void _updateAmountString() {
+    if (_rawInput.isEmpty) {
+      _amount = '0.00';
+    } else {
+      double value = double.parse(_rawInput) / 100;
+      _amount = value.toStringAsFixed(2);
     }
-
-    if (userId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Missing user ID. Please log in again.'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
-      return;
-    }
-
-    // 🛰️ Step 2: Call backend to create PaymentIntent
-    final response = await http.post(
-      Uri.parse('${ApiConfig.baseUrl}/topUp/init'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-      body: jsonEncode({
-        'amountInSen': amountInCents,
-        'currency': 'myr',
-        'userId': userId,
-      }),
-    );
-
-    print('TOPUP /init status: ${response.statusCode}');
-    print('TOPUP /init body: ${response.body}');
-
-    if (response.statusCode == 401) {
-      throw Exception('Unauthorized. Please log in again.');
-    }
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      final err = jsonDecode(response.body);
-      throw Exception('Server error: ${err['message'] ?? response.body}');
-    }
-
-    final data = jsonDecode(response.body);
-    final clientSecret = data['clientSecret'] ?? data['client_secret'];
-    final paymentIntentId =
-        data['paymentIntentId'] ?? data['payment_intent_id'];
-
-    if (clientSecret == null || (clientSecret as String).isEmpty) {
-      throw Exception('Backend did not return a valid clientSecret');
-    }
-
-    // 💳 Step 3: Initialize and show Stripe PaymentSheet
-    await Stripe.instance.initPaymentSheet(
-      paymentSheetParameters: SetupPaymentSheetParameters(
-        paymentIntentClientSecret: clientSecret,
-        merchantDisplayName: 'NexPay',
-        style: ThemeMode.light,
-      ),
-    );
-
-    await Stripe.instance.presentPaymentSheet();
-
-    // ✅ Step 4: Navigate on success
-    context.pushNamed(
-      RouteNames.topUpSuccess,
-      extra: {
-        'amount': _amount,
-        'paymentIntentId': paymentIntentId,
-      },
-    );
-  } catch (e) {
-    print('TopUp Error: $e');
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(e.toString().replaceFirst('Exception: ', '')),
-        backgroundColor: Colors.redAccent,
-      ),
-    );
   }
-}
+
+  void _addQuickAmount(int addAmount) {
+    HapticFeedback.lightImpact();
+    
+    // Parse current raw input to double, add amount, convert back to cents string
+    double currentVal = _rawInput.isEmpty ? 0.0 : double.parse(_rawInput) / 100;
+    double newVal = currentVal + addAmount;
+    
+    setState(() {
+      // e.g. 10.00 -> "1000"
+      _rawInput = (newVal * 100).round().toString(); 
+      _amount = newVal.toStringAsFixed(2);
+    });
+  }
+
+  // ─── Payment Logic ───────────────────────────────────────────────────────────
+
+  Future<void> _onProceed() async {
+    if (_amount == '0.00' || _amount.isEmpty) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final amountInCents = (double.parse(_amount) * 100).round();
+
+      if (token == null) throw Exception('Session expired');
+      if (userId == null) throw Exception('User ID missing');
+
+      // 1. Backend Call
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/topUp/init'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'amountInSen': amountInCents,
+          'currency': 'myr',
+          'userId': userId,
+        }),
+      );
+
+      if (response.statusCode >= 400) {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+
+      final data = jsonDecode(response.body);
+      final clientSecret = data['clientSecret'];
+      final paymentIntentId = data['paymentIntentId'];
+
+      // 2. Stripe SDK
+      await Stripe.instance.initPaymentSheet(
+        paymentSheetParameters: SetupPaymentSheetParameters(
+          paymentIntentClientSecret: clientSecret,
+          merchantDisplayName: 'NexPay',
+          style: ThemeMode.dark,
+          appearance: const PaymentSheetAppearance(
+            colors: PaymentSheetAppearanceColors(
+              primary: primaryColor,
+            ),
+          ),
+        ),
+      );
+
+      await Stripe.instance.presentPaymentSheet();
+
+      if (mounted) {
+        context.pushNamed(
+          RouteNames.topUpSuccess,
+          extra: {'amount': _amount, 'paymentIntentId': paymentIntentId},
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // ─── UI ──────────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    const primaryColor = Color(0xFF102520);
-    const accentColor = Color(0xFFB2DD62);
+    final bool canProceed = _amount != '0.00' && !_isLoading;
 
     return Scaffold(
-      backgroundColor: primaryColor,
+      backgroundColor: primaryColor, // DARK BACKGROUND IS CRITICAL FOR YOUR KEYBOARD
+      
+      // Transparent AppBar
       appBar: AppBar(
-        backgroundColor: primaryColor,
+        backgroundColor: Colors.transparent,
         elevation: 0,
-        title: const Text(
-          'Top Up',
-          style: TextStyle(
-            color: accentColor,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), shape: BoxShape.circle),
+            child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 16),
+          ),
           onPressed: () => Navigator.pop(context),
         ),
+        title: const Text(
+          'Top Up Wallet',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        ),
       ),
-      body: Stack(
-        children: [
-          // Background gradient for subtle depth
-          Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Color(0xFF102520), Color(0xFF1A3C31)],
-              ),
-            ),
-          ),
 
-          // Main content
-          SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(24, 40, 24, 160),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
+      body: Column(
+        children: [
+          // 1. Balance Indicator
+          Container(
+            margin: const EdgeInsets.only(top: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.white.withOpacity(0.1)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.08),
-                        blurRadius: 12,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      const Text(
-                        'Enter Top-Up Amount',
-                        style: TextStyle(
-                          fontSize: 18,
-                          color: Colors.black87,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        _amount.isEmpty ? 'RM 0.00' : 'RM $_amount',
-                        style: const TextStyle(
-                          fontSize: 44,
-                          fontWeight: FontWeight.bold,
-                          color: primaryColor,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      balance == null
-                          ? const CircularProgressIndicator()
-                          : Text(
-                              'Current Balance: RM ${balance?.toStringAsFixed(2) ?? '0.00'}',
-                              style: const TextStyle(
-                                fontSize: 14,
-                                color: Colors.black54,
-                              ),
-                            ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 40),
-                ElevatedButton(
-                  onPressed: _amount.isEmpty ? null : _onProceed,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: accentColor,
-                    disabledBackgroundColor: Colors.grey.shade400,
-                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 40),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  child: const Text(
-                    'Proceed to Top-Up',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: primaryColor,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+                Icon(Icons.account_balance_wallet, size: 14, color: accentColor.withOpacity(0.8)),
+                const SizedBox(width: 8),
+                Text(
+                  'Current Balance: RM ${balance?.toStringAsFixed(2) ?? '0.00'}',
+                  style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 13),
                 ),
               ],
             ),
           ),
 
-          // Fixed bottom keyboard
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: CustomPinKeyboard(
-              onKeyTap: _onKeyTap,
-              onBackspace: _onBackspace,
-              onClear: _onClear,
-              isEnabled: _amount.isNotEmpty,
-              onProceed: _onProceed,
-              onBackspaceLongPress: _onClear,
+          // 2. Main Amount Display (The Hero)
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'Enter Amount',
+                  style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 16),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text(
+                      'RM ',
+                      style: TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white.withOpacity(0.6),
+                      ),
+                    ),
+                    Text(
+                      _amount,
+                      style: const TextStyle(
+                        fontSize: 64,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        letterSpacing: -2,
+                      ),
+                    ),
+                  ],
+                ),
+                if (_isLoading)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 20),
+                    child: CircularProgressIndicator(color: accentColor),
+                  ),
+              ],
             ),
+          ),
+
+          // 3. Quick Chips
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [10, 20, 50, 100].map((val) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: GestureDetector(
+                    onTap: () => _addQuickAmount(val),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.white.withOpacity(0.1)),
+                      ),
+                      child: Text(
+                        '+ RM$val',
+                        style: const TextStyle(
+                          color: accentColor, 
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          
+          const SizedBox(height: 20),
+
+          // 4. YOUR Custom Keyboard
+          // We anchor it to the bottom. 
+          // Note: Your keyboard widget handles the "Proceed" button internally.
+          CustomPinKeyboard(
+            onKeyTap: _onKeyTap,
+            onBackspace: _onBackspace,
+            onBackspaceLongPress: _onClear,
+            onClear: _onClear,
+            isEnabled: canProceed,
+            onProceed: _onProceed,
           ),
         ],
       ),

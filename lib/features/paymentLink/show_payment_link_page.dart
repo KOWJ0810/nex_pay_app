@@ -2,12 +2,10 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:nex_pay_app/core/service/secure_storage.dart';
-
 import '../../core/constants/api_config.dart';
-import 'package:nex_pay_app/router.dart';      // for rootNavigatorKey
-import 'package:nex_pay_app/main.dart';       // for NexPayAppState
+import 'package:nex_pay_app/router.dart';      
+import 'package:nex_pay_app/main.dart';      
 
 class ShowPaymentLinkPage extends StatefulWidget {
   final int outletId;
@@ -24,29 +22,39 @@ class _ShowPaymentLinkPageState extends State<ShowPaymentLinkPage> {
 
   bool isLoading = false;
   String? generatedUrl;
+  
+  // Animation state for the "Copied" button
+  bool isCopied = false;
 
   static const primaryColor = Color(0xFF102520);
   static const accentColor = Color(0xFFB2DD62);
 
   Future<void> createPaymentLink() async {
+    // Dismiss keyboard
+    FocusScope.of(context).unfocus();
+
     if (amountController.text.isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text("Please enter amount")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please enter a valid amount")),
+      );
       return;
     }
 
-    setState(() => isLoading = true);
+    setState(() {
+      isLoading = true;
+      generatedUrl = null; // Reset previous result
+      isCopied = false;
+    });
 
     try {
       const storage = secureStorage;
       final token = await storage.read(key: 'token');
 
-      final url =
-          "${ApiConfig.baseUrl}/payment-links/outlets/${widget.outletId}";
+      final url = "${ApiConfig.baseUrl}/payment-links/outlets/${widget.outletId}";
 
       final body = {
         "amount": double.parse(amountController.text),
-        "note": noteController.text.trim(),
+        "note": noteController.text.trim().isEmpty ? null : noteController.text.trim(),
         "expiresInMinutes": 60,
       };
 
@@ -61,212 +69,262 @@ class _ShowPaymentLinkPageState extends State<ShowPaymentLinkPage> {
 
       if (res.statusCode == 200) {
         final json = jsonDecode(res.body);
-
         if (json["success"] == true) {
           setState(() {
             generatedUrl = json["data"]["url"];
           });
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(json["message"] ?? "Failed")),
-          );
+          _showError(json["message"] ?? "Failed");
         }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Server error: ${res.statusCode}")),
-        );
+        _showError("Server error: ${res.statusCode}");
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
-      );
+      _showError("Connection error: $e");
     } finally {
-      setState(() => isLoading = false);
+      if(mounted) setState(() => isLoading = false);
     }
+  }
+
+  void _showError(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), backgroundColor: Colors.redAccent),
+    );
+  }
+
+  void _copyToClipboard() {
+    if (generatedUrl == null) return;
+    
+    Clipboard.setData(ClipboardData(text: generatedUrl!));
+
+    // Tell main.dart to ignore this link forever (prevents deep link loop)
+    final appState = rootNavigatorKey.currentContext?.findAncestorStateOfType<NexPayAppState>();
+    appState?.ignoreForever(generatedUrl!);
+
+    setState(() => isCopied = true);
+    
+    // Reset copy status after 2 seconds
+    Future.delayed(const Duration(seconds: 2), () {
+      if(mounted) setState(() => isCopied = false);
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Link copied to clipboard!"), backgroundColor: primaryColor),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6F5),
+      backgroundColor: primaryColor, // Immersive background
       appBar: AppBar(
         backgroundColor: primaryColor,
         elevation: 0,
-        title: const Text(
-          "Create Payment Link",
-          style: TextStyle(
-            color: accentColor,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
+        centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), shape: BoxShape.circle),
+            child: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18),
+          ),
           onPressed: () => Navigator.pop(context),
         ),
+        title: const Text(
+          "Payment Link",
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Enter Amount",
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: primaryColor,
-              ),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: amountController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: InputDecoration(
-                hintText: "e.g. 88.50",
-                filled: true,
-                fillColor: Colors.white,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: Colors.black26),
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            const Text(
-              "Note (Optional)",
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: primaryColor,
-              ),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: noteController,
-              decoration: InputDecoration(
-                hintText: "e.g. Order #1234",
-                filled: true,
-                fillColor: Colors.white,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: Colors.black26),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 30),
-
-            /// CREATE BUTTON
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: isLoading ? null : createPaymentLink,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: accentColor,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-                child: isLoading
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: primaryColor,
-                        ),
-                      )
-                    : const Text(
-                        "Create Payment Link",
-                        style: TextStyle(
-                          color: primaryColor,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 16,
-                        ),
-                      ),
-              ),
-            ),
-
-            const SizedBox(height: 30),
-
-            if (generatedUrl != null) ...[
-              const Text(
-                "Payment Link",
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: primaryColor,
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: accentColor, width: 1.5),
-                  borderRadius: BorderRadius.circular(14),
-                ),
+      body: Column(
+        children: [
+          // ─── TOP SECTION: AMOUNT INPUT ──────────────────────────────────────
+          Expanded(
+            child: Center(
+              child: SingleChildScrollView(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      generatedUrl!,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: primaryColor,
-                        fontWeight: FontWeight.w600,
+                      "Enter Amount",
+                      style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 16),
+                    ),
+                    const SizedBox(height: 20),
+                    
+                    // Big Money Input
+                    IntrinsicWidth(
+                      child: TextField(
+                        controller: amountController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 48, 
+                          fontWeight: FontWeight.w800, 
+                          color: Colors.white,
+                          letterSpacing: -1,
+                        ),
+                        cursorColor: accentColor,
+                        decoration: InputDecoration(
+                          prefixText: "RM ",
+                          prefixStyle: TextStyle(
+                            fontSize: 28, 
+                            fontWeight: FontWeight.w600, 
+                            color: Colors.white.withOpacity(0.5)
+                          ),
+                          border: InputBorder.none,
+                          hintText: "0.00",
+                          hintStyle: TextStyle(color: Colors.white.withOpacity(0.2)),
+                        ),
+                        inputFormatters: [
+                           FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')), 
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 14),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          Clipboard.setData(ClipboardData(text: generatedUrl ?? ""));
 
-                          // Tell main.dart to ignore this link forever
-                          final appState = rootNavigatorKey.currentContext?.findAncestorStateOfType<NexPayAppState>();
-                          if (generatedUrl != null) {
-                            appState?.ignoreForever(generatedUrl!);
-                          }
+                    const SizedBox(height: 30),
 
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("Payment link copied")),
-                          );
-                        },
-                        icon: const Icon(Icons.copy, color: primaryColor),
-                        label: const Text(
-                          "Copy Link",
-                          style: TextStyle(
-                            color: primaryColor,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: accentColor,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 10,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                    // Note Input (Transparent style)
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 40),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: TextField(
+                        controller: noteController,
+                        style: const TextStyle(color: Colors.white),
+                        textAlign: TextAlign.center,
+                        decoration: InputDecoration(
+                          border: InputBorder.none,
+                          hintText: "Add a note (e.g. Table 5)",
+                          hintStyle: TextStyle(color: Colors.white.withOpacity(0.4)),
+                          icon: Icon(Icons.edit_note, color: Colors.white.withOpacity(0.6)),
                         ),
                       ),
                     ),
                   ],
                 ),
               ),
-            ]
-          ],
-        ),
+            ),
+          ),
+
+          // ─── BOTTOM SECTION: ACTION / RESULT ──────────────────────────────
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(24),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (generatedUrl == null) ...[
+                  // 1. Initial State: Create Button
+                  const Text(
+                    "Link is valid for 60 minutes",
+                    style: TextStyle(color: Colors.grey, fontSize: 13),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton(
+                      onPressed: isLoading ? null : createPaymentLink,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primaryColor,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        elevation: 0,
+                      ),
+                      child: isLoading
+                          ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : const Text(
+                              "Generate Link",
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                            ),
+                    ),
+                  ),
+                ] else ...[
+                  // 2. Success State: Result Card 
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF4F6F8),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: accentColor.withOpacity(0.5)),
+                    ),
+                    child: Column(
+                      children: [
+                        const Icon(Icons.link_rounded, color: primaryColor, size: 32),
+                        const SizedBox(height: 12),
+                        const Text(
+                          "Payment Link Ready!",
+                          style: TextStyle(fontWeight: FontWeight.bold, color: primaryColor, fontSize: 16),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          generatedUrl!,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      // Share/Copy Button
+                      Expanded(
+                        child: SizedBox(
+                          height: 56,
+                          child: ElevatedButton.icon(
+                            onPressed: _copyToClipboard,
+                            icon: Icon(isCopied ? Icons.check_rounded : Icons.copy_rounded, color: primaryColor),
+                            label: Text(
+                              isCopied ? "Copied" : "Copy Link",
+                              style: const TextStyle(fontWeight: FontWeight.bold, color: primaryColor),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: accentColor,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      // New Link Button
+                      SizedBox(
+                        height: 56,
+                        width: 56,
+                        child: OutlinedButton(
+                          onPressed: () {
+                            setState(() {
+                              amountController.clear();
+                              noteController.clear();
+                              generatedUrl = null;
+                            });
+                          },
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Colors.grey),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            padding: EdgeInsets.zero,
+                          ),
+                          child: const Icon(Icons.refresh_rounded, color: Colors.grey),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                
+                // Handle keyboard padding
+                SizedBox(height: MediaQuery.of(context).viewInsets.bottom > 0 ? 20 : 0),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
