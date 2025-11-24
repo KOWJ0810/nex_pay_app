@@ -1,11 +1,12 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter/services.dart'; // For Haptics
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:nex_pay_app/core/service/secure_storage.dart';
-
+import '../../core/constants/colors.dart'; // Ensure primaryColor/accentColor exist here
 import '../../core/constants/api_config.dart';
+import 'package:go_router/go_router.dart';
 
 class TransactionLimitPage extends StatefulWidget {
   const TransactionLimitPage({super.key});
@@ -17,16 +18,15 @@ class TransactionLimitPage extends StatefulWidget {
 class _TransactionLimitPageState extends State<TransactionLimitPage> {
   final storage = secureStorage;
 
-  // User values loaded from API
+  // User values
   double perTransferLimit = 0;
   double dailyLimit = 0;
 
-  // Min / Max rules
-  double perTransferMin = 100;
-  double perTransferMax = 9999;
-
-  double dailyMin = 100;
-  double dailyMax = 120000;
+  // Rules
+  final double perTransferMin = 100;
+  final double perTransferMax = 10000; // Rounded for cleaner slider
+  final double dailyMin = 100;
+  final double dailyMax = 120000;
 
   bool isLoading = true;
   bool isSaving = false;
@@ -34,98 +34,87 @@ class _TransactionLimitPageState extends State<TransactionLimitPage> {
   double initialPerTransfer = 0;
   double initialDaily = 0;
 
-  double currentPerLimit = 0;
-  double currentDailyLimit = 0;
-
   @override
   void initState() {
     super.initState();
     _loadSpendingLimit();
   }
 
-  // =======================================================
-  // LOAD USER LIMIT FROM API
-  // =======================================================
+  // ─── API LOGIC ─────────────────────────────────────────────────────────────
   Future<void> _loadSpendingLimit() async {
     final token = await storage.read(key: "token");
     if (token == null) return;
 
-    final res = await http.get(
-      Uri.parse("${ApiConfig.baseUrl}/account/spending-limit"),
-      headers: {"Authorization": "Bearer $token"},
-    );
+    try {
+      final res = await http.get(
+        Uri.parse("${ApiConfig.baseUrl}/account/spending-limit"),
+        headers: {"Authorization": "Bearer $token"},
+      );
 
-    final json = jsonDecode(res.body);
-    if (json["success"] == true) {
-      double apiPer = json["data"]["perTransactionLimit"] * 1.0;
-      double apiDaily = json["data"]["dailyLimit"] * 1.0;
+      final json = jsonDecode(res.body);
+      if (json["success"] == true) {
+        double apiPer = (json["data"]["perTransactionLimit"] ?? 0).toDouble();
+        double apiDaily = (json["data"]["dailyLimit"] ?? 0).toDouble();
 
-      setState(() {
-        // Store original (for Save button enable check)
-        initialPerTransfer = apiPer;
-        initialDaily = apiDaily;
-
-        // Current limit (for "Current:" label)
-        currentPerLimit = apiPer;
-        currentDailyLimit = apiDaily;
-
-        // User-editable values
-        perTransferLimit = apiPer;
-        dailyLimit = apiDaily;
-
-        isLoading = false;
-      });
-    } else {
+        setState(() {
+          initialPerTransfer = apiPer;
+          initialDaily = apiDaily;
+          perTransferLimit = apiPer;
+          dailyLimit = apiDaily;
+          isLoading = false;
+        });
+      } else {
+        setState(() => isLoading = false);
+      }
+    } catch (e) {
       setState(() => isLoading = false);
     }
   }
 
-  // =======================================================
-  // SAVE NEW LIMITS
-  // =======================================================
   Future<void> _saveLimit() async {
     setState(() => isSaving = true);
 
     final token = await storage.read(key: "token");
     if (token == null) return;
 
-    final body = {
-      "dailyLimit": dailyLimit.round(),
-      "perTransactionLimit": perTransferLimit.round(),
-    };
+    try {
+      final body = {
+        "dailyLimit": dailyLimit.round(),
+        "perTransactionLimit": perTransferLimit.round(),
+      };
 
-    final res = await http.put(
-      Uri.parse("${ApiConfig.baseUrl}/account/spending-limit"),
-      headers: {
-        "Authorization": "Bearer $token",
-        "Content-Type": "application/json"
-      },
-      body: jsonEncode(body),
-    );
-
-    final json = jsonDecode(res.body);
-
-    setState(() => isSaving = false);
-
-    if (json["success"] == true) {
-      setState(() {
-        initialDaily = dailyLimit;
-        initialPerTransfer = perTransferLimit;
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Transfer limit updated successfully."),
-          backgroundColor: Colors.green,
-        ),
+      final res = await http.put(
+        Uri.parse("${ApiConfig.baseUrl}/account/spending-limit"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json"
+        },
+        body: jsonEncode(body),
       );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Failed to save limits."),
-          backgroundColor: Colors.red,
-        ),
-      );
+
+      final json = jsonDecode(res.body);
+      setState(() => isSaving = false);
+
+      if (json["success"] == true) {
+        setState(() {
+          initialDaily = dailyLimit;
+          initialPerTransfer = perTransferLimit;
+        });
+        if(mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Limits updated successfully"), backgroundColor: Colors.green),
+          );
+          context.pop();
+        }
+      } else {
+        if(mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(json["message"] ?? "Failed to save"), backgroundColor: Colors.red),
+          );
+        }
+      }
+    } catch (e) {
+      setState(() => isSaving = false);
     }
   }
 
@@ -134,211 +123,232 @@ class _TransactionLimitPageState extends State<TransactionLimitPage> {
 
   String formatRM(double value) {
     final format = NumberFormat("#,###", "en_US");
-    return "RM${format.format(value)}";
+    return "RM ${format.format(value)}";
   }
 
-  // =======================================================
-  // PAGE UI
-  // =======================================================
+  // ─── UI BUILD ──────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    const primaryColor = Color(0xFF102520);
-    const sliderColor = Color(0xFF3B82F6);
-
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6F5),
-      appBar: AppBar(
-        backgroundColor: primaryColor,
-        title: const Text(
-          "Transfer Limit",
-          style: TextStyle(color: Colors.white),
-        ),
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
-
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
+      backgroundColor: const Color(0xFFF4F6F8),
+      body: Column(
+        children: [
+          // 1. Custom Gradient Header
+          Container(
+            padding: const EdgeInsets.only(top: 60, bottom: 20, left: 16, right: 16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [primaryColor, const Color(0xFF0D201C)],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(30)),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 5))
+              ],
+            ),
+            child: Row(
               children: [
-                Expanded(
-                  child: SingleChildScrollView(
+                IconButton(
+                  icon: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), shape: BoxShape.circle),
+                    child: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18),
+                  ),
+                  onPressed: () => context.pop(),
+                ),
+                const Expanded(
+                  child: Text(
+                    "Transfer Limits",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                const SizedBox(width: 48), // Spacer to balance back button
+              ],
+            ),
+          ),
+
+          // 2. Body
+          Expanded(
+            child: isLoading
+                ? const Center(child: CircularProgressIndicator(color: primaryColor))
+                : SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
                     padding: const EdgeInsets.all(20),
                     child: Column(
                       children: [
-                        _buildLimitCard(
-                          title: "Per transfer limit",
-                          amount: perTransferLimit,
+                        _buildSliderCard(
+                          title: "Per Transaction Limit",
+                          subtitle: "Max amount for a single transfer",
+                          icon: Icons.payments_outlined,
+                          value: perTransferLimit,
                           min: perTransferMin,
                           max: perTransferMax,
-                          onChanged: (val) =>
-                              setState(() => perTransferLimit = val),
-                          sliderColor: sliderColor,
-                          current: currentPerLimit,
+                          onChanged: (val) {
+                            if (val != perTransferLimit) HapticFeedback.selectionClick();
+                            setState(() => perTransferLimit = val);
+                          },
                         ),
-
                         const SizedBox(height: 20),
-
-                        _buildLimitCard(
-                          title: "Daily transfer limit",
-                          amount: dailyLimit,
+                        _buildSliderCard(
+                          title: "Daily Limit",
+                          subtitle: "Max cumulative amount per day",
+                          icon: Icons.calendar_today_outlined,
+                          value: dailyLimit,
                           min: dailyMin,
                           max: dailyMax,
-                          onChanged: (val) =>
-                              setState(() => dailyLimit = val),
-                          sliderColor: sliderColor,
-                          current: currentDailyLimit,
+                          onChanged: (val) {
+                            if (val != dailyLimit) HapticFeedback.selectionClick();
+                            setState(() => dailyLimit = val);
+                          },
                         ),
+                        const SizedBox(height: 100), // Space for bottom button
                       ],
                     ),
                   ),
-                ),
+          ),
+        ],
+      ),
 
-                // Save Button
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: 55,
-                    child: ElevatedButton(
-                      onPressed: hasChanges && !isSaving ? _saveLimit : null,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            hasChanges ? primaryColor : Colors.grey.shade300,
-                        disabledBackgroundColor: Colors.grey.shade300,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
+      // 3. Floating Save Button
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -5))],
+        ),
+        child: SafeArea(
+          child: SizedBox(
+            height: 56,
+            child: ElevatedButton(
+              onPressed: hasChanges && !isSaving ? _saveLimit : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryColor,
+                disabledBackgroundColor: Colors.grey[300],
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+              child: isSaving
+                  ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : Text(
+                      hasChanges ? "Save Changes" : "No Changes",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: hasChanges ? Colors.white : Colors.grey[500],
                       ),
-                      child: isSaving
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text(
-                              "Save",
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
                     ),
-                  ),
-                ),
-              ],
             ),
+          ),
+        ),
+      ),
     );
   }
 
-  // =======================================================
-  // LIMIT CARD UI
-  // =======================================================
-  Widget _buildLimitCard({
+  // ─── CUSTOM SLIDER CARD ────────────────────────────────────────────────────
+  Widget _buildSliderCard({
     required String title,
-    required double amount,
+    required String subtitle,
+    required IconData icon,
+    required double value,
     required double min,
     required double max,
     required ValueChanged<double> onChanged,
-    required Color sliderColor,
-    required double current,
   }) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 15, offset: const Offset(0, 5)),
+        ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Title
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: Colors.black87,
-            ),
+          // Header Row
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(color: accentColor.withOpacity(0.2), shape: BoxShape.circle),
+                child: Icon(icon, color: primaryColor, size: 22),
+              ),
+              const SizedBox(width: 16),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: primaryColor)),
+                  Text(subtitle, style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+                ],
+              ),
+            ],
           ),
+          
+          const SizedBox(height: 24),
 
-          const SizedBox(height: 8),
-
-          // Current value
-          Text(
-            "Current: ${formatRM(current)}",
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Colors.black54,
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // Amount card
+          // Big Amount Display
           Container(
-            padding: const EdgeInsets.all(18),
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 16),
             decoration: BoxDecoration(
-              color: const Color(0xFFF9FAF9),
-              borderRadius: BorderRadius.circular(14),
+              color: const Color(0xFFF8F9FA),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey.shade200),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "Amount",
-                  style: TextStyle(fontSize: 15, color: Colors.black54),
+            child: Center(
+              child: Text(
+                formatRM(value),
+                style: const TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.w800,
+                  color: primaryColor,
+                  letterSpacing: -1,
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  formatRM(amount),
-                  style: const TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  "Min. RM${min.toInt()} to max. RM${NumberFormat("#,###").format(max)}",
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.black38,
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
 
-          // Slider
+          // Custom Slider
           SliderTheme(
             data: SliderTheme.of(context).copyWith(
-              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 12),
-              overlayShape: const RoundSliderOverlayShape(overlayRadius: 20),
-              activeTrackColor: sliderColor,
-              inactiveTrackColor: Colors.grey.shade400,
-              thumbColor: sliderColor,
+              activeTrackColor: primaryColor,
+              inactiveTrackColor: Colors.grey[200],
+              thumbColor: primaryColor,
+              overlayColor: accentColor.withOpacity(0.2),
+              trackHeight: 6,
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 14, elevation: 4),
+              overlayShape: const RoundSliderOverlayShape(overlayRadius: 24),
             ),
             child: Slider(
-              value: amount,
+              value: value,
               min: min,
               max: max,
-              divisions: ((max - min) ~/ 100),
+              // Calculate divisions to snap to nearest 100
+              divisions: (max - min) ~/ 100, 
               onChanged: (val) {
-                double stepped = (val / 100).round() * 100;
+                // Snap logic to nearest 100
+                double stepped = (val / 100).round() * 100.0;
                 if (stepped < min) stepped = min;
                 if (stepped > max) stepped = max;
-                onChanged(stepped.toDouble());
+                onChanged(stepped);
               },
             ),
           ),
 
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text("RM ${min.toInt()}",
-                  style: const TextStyle(color: Colors.black54)),
-              Text("RM ${NumberFormat("#,###").format(max)}",
-                  style: const TextStyle(color: Colors.black54)),
-            ],
+          // Min/Max Labels
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(formatRM(min), style: TextStyle(fontSize: 12, color: Colors.grey[500], fontWeight: FontWeight.w600)),
+                Text(formatRM(max), style: TextStyle(fontSize: 12, color: Colors.grey[500], fontWeight: FontWeight.w600)),
+              ],
+            ),
           ),
         ],
       ),
