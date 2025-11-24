@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // For Clipboard
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart'; // Import intl for currency formatting
 import 'package:nex_pay_app/core/constants/api_config.dart';
 import 'package:nex_pay_app/core/constants/colors.dart';
 import 'package:nex_pay_app/core/service/secure_storage.dart';
@@ -23,6 +25,9 @@ class _MerchantAccountPageState extends State<MerchantAccountPage> {
   bool isLoading = true;
   String? errorMessage;
 
+  // Formatter
+  final currencyFormat = NumberFormat.currency(locale: 'en_MY', symbol: 'RM ', decimalDigits: 2);
+
   @override
   void initState() {
     super.initState();
@@ -33,7 +38,7 @@ class _MerchantAccountPageState extends State<MerchantAccountPage> {
     try {
       final token = await storage.read(key: 'token');
       if (token == null) {
-        setState(() => errorMessage = 'Session expired. Please login again.');
+        if(mounted) setState(() => errorMessage = 'Session expired.');
         return;
       }
 
@@ -44,23 +49,17 @@ class _MerchantAccountPageState extends State<MerchantAccountPage> {
 
       final jsonRes = jsonDecode(res.body);
       if (res.statusCode == 200 && jsonRes['success'] == true) {
-        setState(() => merchantData = jsonRes['data']);
+        if(mounted) setState(() => merchantData = jsonRes['data']);
       } else if (res.statusCode == 404 && jsonRes['success'] == false) {
-        context.goNamed(RouteNames.merchantRegisterLanding);
+        if(mounted) context.goNamed(RouteNames.merchantRegisterLanding);
       } else {
-        setState(() => errorMessage = jsonRes['message'] ?? 'Failed to load merchant data.');
+        if(mounted) setState(() => errorMessage = jsonRes['message']);
       }
     } catch (e) {
-      setState(() => errorMessage = 'Error: $e');
+      if(mounted) setState(() => errorMessage = 'Error: $e');
     } finally {
-      setState(() => isLoading = false);
+      if(mounted) setState(() => isLoading = false);
     }
-  }
-
-  void _onEditMerchantProfile() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Edit merchant profile (coming soon)')),
-    );
   }
 
   @override
@@ -70,243 +69,272 @@ class _MerchantAccountPageState extends State<MerchantAccountPage> {
       body: isLoading
           ? const Center(child: CircularProgressIndicator(color: accentColor))
           : errorMessage != null
-              ? Center(
-                  child: Text(errorMessage!,
-                      style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w600)))
-              : CustomScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  slivers: [
-                    // ─────────── Header ───────────
-                    SliverAppBar(
-                      automaticallyImplyLeading: false,
-                      expandedHeight: 220,
-                      elevation: 0,
-                      pinned: false,
-                      backgroundColor: primaryColor,
-                      flexibleSpace: FlexibleSpaceBar(
-                        background: Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                primaryColor,
-                                primaryColor.withOpacity(.85),
-                                accentColor.withOpacity(.9),
-                              ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                          ),
-                          child: SafeArea(
-                            bottom: false,
-                            child: Padding(
-                              padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: const [
-                                      Text(
-                                        'Merchant',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w800,
-                                          fontSize: 20,
+              ? Center(child: Text(errorMessage!, style: const TextStyle(color: Colors.red)))
+              // WRAPPER CONTAINER: Fixes the "White gap" issue at the bottom
+              : Container(
+                  color: const Color(0xFFF4F6F8),
+                  child: CustomScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    slivers: [
+                      // ─────────── 1. Modern Header ───────────
+                      SliverAppBar(
+                        automaticallyImplyLeading: false,
+                        expandedHeight: 300,
+                        pinned: true,
+                        backgroundColor: primaryColor,
+                        flexibleSpace: FlexibleSpaceBar(
+                          background: Stack(
+                            children: [
+                              // Gradient BG
+                              Container(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [primaryColor, const Color(0xFF0D201C)],
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                  ),
+                                ),
+                              ),
+                              // Decorative Circle
+                              Positioned(
+                                top: -50, right: -50,
+                                child: Container(
+                                  width: 200, height: 200,
+                                  decoration: BoxDecoration(color: accentColor.withOpacity(0.05), shape: BoxShape.circle),
+                                ),
+                              ),
+                              
+                              // Content
+                              SafeArea(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(20.0),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      // Top Row
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          const Text('My Business', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20)),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                            decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+                                            child: Row(
+                                              children: [
+                                                const Icon(Icons.verified, color: accentColor, size: 14),
+                                                const SizedBox(width: 6),
+                                                Text(merchantData?['status'] ?? 'Active', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                                              ],
+                                            ),
+                                          )
+                                        ],
+                                      ),
+                                      const SizedBox(height: 20),
+                                      
+                                      // Glass Card (Profile + Balance)
+                                      _GlassCard(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            // Profile Row
+                                            Row(
+                                              children: [
+                                                CircleAvatar(
+                                                  radius: 24,
+                                                  backgroundColor: Colors.white.withOpacity(0.1),
+                                                  backgroundImage: merchantData?['ssmImageUpload'] != null 
+                                                      ? NetworkImage(merchantData!['ssmImageUpload']) 
+                                                      : null,
+                                                  child: merchantData?['ssmImageUpload'] == null 
+                                                      ? const Icon(Icons.store, color: Colors.white70) 
+                                                      : null,
+                                                ),
+                                                const SizedBox(width: 12),
+                                                Expanded(
+                                                  child: Column(
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    children: [
+                                                      Text(merchantData?['merchantName'] ?? 'Merchant', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                                                      Text(merchantData?['merchantType'] ?? 'Business', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12)),
+                                                    ],
+                                                  ),
+                                                ),
+                                                IconButton(
+                                                  onPressed: () {}, // Edit Profile
+                                                  icon: const Icon(Icons.edit_outlined, color: Colors.white70, size: 20),
+                                                )
+                                              ],
+                                            ),
+                                            const SizedBox(height: 20),
+                                            Divider(color: Colors.white.withOpacity(0.1), height: 1),
+                                            const SizedBox(height: 16),
+                                            // Balance Row (Hero)
+                                            Text("Wallet Balance", style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 13)),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              currencyFormat.format(merchantData?['totalWalletBalance'] ?? 0),
+                                              style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w800),
+                                            ),
+                                          ],
                                         ),
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 16),
-                                  _GlassCard(
-                                    child: Row(
-                                      children: [
-                                        CircleAvatar(
-                                          radius: 28,
-                                          backgroundImage: NetworkImage(
-                                              merchantData?['ssmImageUpload'] ?? ''),
-                                          backgroundColor: Colors.white.withOpacity(.18),
-                                        ),
-                                        const SizedBox(width: 14),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                merchantData?['merchantName'] ??
-                                                    'Unknown Merchant',
-                                                style: const TextStyle(
-                                                    color: Colors.white,
-                                                    fontWeight: FontWeight.w800,
-                                                    fontSize: 16),
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                merchantData?['merchantType'] ?? '-',
-                                                style: TextStyle(
-                                                    color: Colors.white.withOpacity(.92)),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        TextButton(
-                                          onPressed: _onEditMerchantProfile,
-                                          child: const Text(
-                                            'Edit',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
+                                ),
                               ),
-                            ),
+                            ],
                           ),
                         ),
                       ),
-                    ),
 
-                    // ─────────── Content ───────────
-                    SliverToBoxAdapter(
-                      child: Container(
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFF4F6FA),
-                          borderRadius:
-                              BorderRadius.vertical(top: Radius.circular(28)),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
+                      // ─────────── 2. Body Content ───────────
+                      SliverToBoxAdapter(
+                        child: Container(
+                          transform: Matrix4.translationValues(0, -20, 0),
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFF4F6F8),
+                            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                          ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const _SectionHeader('Merchant Details'),
-                              _CardSection(children: [
-                                _InfoTile(
-                                    icon: Icons.business_rounded,
-                                    title: 'Business Code',
-                                    value: merchantData?['businessRegistrationCode'] ?? '-'),
-                                _InfoTile(
-                                    icon: Icons.account_balance_rounded,
-                                    title: 'Bank Account',
-                                    value: merchantData?['bankAccountNum'] ?? '-'),
-                                _InfoTile(
-                                    icon: Icons.account_balance_wallet_rounded,
-                                    title: 'Wallet Balance',
-                                    value:
-                                        'RM ${merchantData?['totalWalletBalance']?.toStringAsFixed(2) ?? '0.00'}'),
-                                _InfoTile(
-                                    icon: Icons.verified_rounded,
-                                    title: 'Status',
-                                    value: merchantData?['status'] ?? '-'),
-                              ]),
+                              // Increased Spacing
+                              const SizedBox(height: 24),
 
+                              // Action Grid
+                              const Text("Quick Actions", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: primaryColor)),
                               const SizedBox(height: 16),
-                              const _SectionHeader('Navigation'),
-                              _CardSection(children: [
-                                _NavTile(
-                                  icon: Icons.store_rounded,
-                                  title: 'Outlets',
-                                  onTap: () => context.pushNamed(RouteNames.merchantOutletList),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  _ActionItem(
+                                    icon: Icons.storefront_rounded, 
+                                    label: "Outlets", 
+                                    color: Colors.orange,
+                                    onTap: () => context.pushNamed(RouteNames.merchantOutletList),
+                                  ),
+                                  _ActionItem(
+                                    icon: Icons.qr_code_2_rounded, 
+                                    label: "Get QR", 
+                                    color: accentColor,
+                                    onTap: () => context.pushNamed(RouteNames.outletListQrCode),
+                                  ),
+                                  _ActionItem(
+                                    icon: Icons.link_rounded, 
+                                    label: "Payment Link", 
+                                    color: Colors.blueAccent,
+                                    onTap: () => context.pushNamed(RouteNames.outletListPaymentLink),
+                                  ),
+                                ],
+                              ),
+
+                              const SizedBox(height: 30),
+
+                              // Business Details Card
+                              const Text("Business Details", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: primaryColor)),
+                              const SizedBox(height: 12),
+                              Container(
+                                padding: const EdgeInsets.all(20),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
                                 ),
-                                _NavTile(
-                                  icon: Icons.link_rounded,
-                                  title: 'Generate Payment Link',
-                                  onTap: () => context.pushNamed(RouteNames.outletListPaymentLink),
+                                child: Column(
+                                  children: [
+                                    _DetailRow(label: "Registration Code", value: merchantData?['businessRegistrationCode'] ?? '-'),
+                                    const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Divider(height: 1)),
+                                    _DetailRow(
+                                      label: "Bank Account", 
+                                      value: merchantData?['bankAccountNum'] ?? '-',
+                                      canCopy: true,
+                                    ),
+                                  ],
                                 ),
-                                _NavTile(
-                                  icon: Icons.qr_code_rounded,
-                                  title: 'Generate Business QR',
-                                  onTap: () => context.pushNamed(RouteNames.outletListQrCode),
-                                ),
-                              ]),
+                              ),
+                              
+                              // Spacer
                               const SizedBox(height: 100),
                             ],
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
     );
   }
 }
 
-// ─────────── UI Components ───────────
+// ─────────── Components ───────────
 
-class _SectionHeader extends StatelessWidget {
-  final String text;
-  const _SectionHeader(this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(text,
-          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
-    );
-  }
-}
-
-class _CardSection extends StatelessWidget {
-  final List<Widget> children;
-  const _CardSection({required this.children});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 6),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 12,
-              offset: const Offset(0, 6))
-        ],
-      ),
-      child: Column(children: children.divide(const Divider(height: 1)).toList()),
-    );
-  }
-}
-
-class _InfoTile extends StatelessWidget {
+class _ActionItem extends StatelessWidget {
   final IconData icon;
-  final String title;
-  final String value;
-  const _InfoTile({required this.icon, required this.title, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      leading: CircleAvatar(
-          radius: 20,
-          backgroundColor: accentColor.withOpacity(.16),
-          child: Icon(icon, color: primaryColor)),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-      subtitle: Text(value),
-    );
-  }
-}
-
-class _NavTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
+  final String label;
+  final Color color;
   final VoidCallback onTap;
-  const _NavTile({required this.icon, required this.title, required this.onTap});
+
+  const _ActionItem({required this.icon, required this.label, required this.color, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
+    return GestureDetector(
       onTap: onTap,
-      leading: CircleAvatar(
-          radius: 20,
-          backgroundColor: accentColor.withOpacity(.16),
-          child: Icon(icon, color: primaryColor)),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-      trailing: const Icon(Icons.chevron_right_rounded),
+      child: Container(
+        width: MediaQuery.of(context).size.width * 0.28, // Dynamic width
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 3))],
+        ),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: color.withOpacity(0.15), shape: BoxShape.circle),
+              child: Icon(icon, color: color == accentColor ? const Color(0xFF4A7A00) : color, size: 24),
+            ),
+            const SizedBox(height: 10),
+            Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: primaryColor)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final bool canCopy;
+
+  const _DetailRow({required this.label, required this.value, this.canCopy = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: TextStyle(color: Colors.grey[500], fontSize: 13, fontWeight: FontWeight.w500)),
+        Row(
+          children: [
+            Text(value, style: const TextStyle(color: primaryColor, fontWeight: FontWeight.w600, fontSize: 14)),
+            if (canCopy)
+              GestureDetector(
+                onTap: () {
+                  Clipboard.setData(ClipboardData(text: value));
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Copied to clipboard")));
+                },
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: Icon(Icons.copy_rounded, size: 14, color: Colors.grey[400]),
+                ),
+              )
+          ],
+        )
+      ],
     );
   }
 }
@@ -318,29 +346,20 @@ class _GlassCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(24),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withOpacity(0.25)),
+            color: Colors.white.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.white.withOpacity(0.2)),
           ),
           child: child,
         ),
       ),
     );
-  }
-}
-
-extension on List<Widget> {
-  Iterable<Widget> divide(Widget divider) sync* {
-    for (var i = 0; i < length; i++) {
-      yield this[i];
-      if (i != length - 1) yield divider;
-    }
   }
 }
