@@ -51,6 +51,11 @@ dependencies:
   qr_flutter: ^4.1.0
   mobile_scanner: ^6.0.2
   fl_chart: ^0.68.0
+  firebase_database: ^12.1.0
+  contacts_service: ^0.6.3
+  permission_handler: ^11.3.1
+  stomp_dart_client: ^1.0.0
+  web_socket_channel: ^2.4.0
 
   
 dev_dependencies:
