@@ -37,6 +37,8 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>Need camera access to scan your face</string>
+	<key>NSContactsUsageDescription</key>
+	<string>NexPay needs access to your contacts to start PayChat with friends.</string>	
 	<key>NSFaceIDUsageDescription</key>
 	<string>Allow NexPay to use Face ID for secure sign-in.</string>
 	<key>NSUserActivityTypes</key>
@@ -62,5 +64,6 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	
 </dict>
 </plist>

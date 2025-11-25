@@ -577,12 +577,11 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       name: RouteNames.chatroom,
       path: '/chatroom',
-      builder: (ctx, st) {
-        final extras = st.extra as Map<String, dynamic>;
-        return ChatRoomPage(
-          userId: extras['user_id'] as int,
-          userName: extras['user_name'] as String,
-          chatroomId: extras['chatroom_id'] as int,
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>;
+        return ChatroomPage(
+          chatroomId: extra['chatroom_id'] as int,
+          chatTitle: extra['user_name'] as String,
         );
       },
     ),
