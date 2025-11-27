@@ -23,7 +23,7 @@ class _TopUpPageState extends State<TopUpPage> {
 
   // State
   String _amount = '0.00';
-  String _rawInput = ''; // Keeps track of keystrokes "123" -> 1.23
+  String _rawInput = ''; 
   double? balance;
   int? userId;
   String? token;
@@ -49,7 +49,7 @@ class _TopUpPageState extends State<TopUpPage> {
   // ─── Input Logic ─────────────────────────────────────────────────────────────
 
   void _onKeyTap(String value) {
-    if (_rawInput.length < 9) { // Prevent unrealistic amounts
+    if (_rawInput.length < 9) { 
       setState(() {
         if (_rawInput == '0') _rawInput = '';
         _rawInput += value;
@@ -86,12 +86,10 @@ class _TopUpPageState extends State<TopUpPage> {
   void _addQuickAmount(int addAmount) {
     HapticFeedback.lightImpact();
     
-    // Parse current raw input to double, add amount, convert back to cents string
     double currentVal = _rawInput.isEmpty ? 0.0 : double.parse(_rawInput) / 100;
     double newVal = currentVal + addAmount;
     
     setState(() {
-      // e.g. 10.00 -> "1000"
       _rawInput = (newVal * 100).round().toString(); 
       _amount = newVal.toStringAsFixed(2);
     });
@@ -110,7 +108,7 @@ class _TopUpPageState extends State<TopUpPage> {
       if (token == null) throw Exception('Session expired');
       if (userId == null) throw Exception('User ID missing');
 
-      // 1. Backend Call
+      // 1. Init Payment Intent
       final response = await http.post(
         Uri.parse('${ApiConfig.baseUrl}/topUp/init'),
         headers: {
@@ -132,7 +130,7 @@ class _TopUpPageState extends State<TopUpPage> {
       final clientSecret = data['clientSecret'];
       final paymentIntentId = data['paymentIntentId'];
 
-      // 2. Stripe SDK
+      // 2. Stripe SDK: Init Sheet
       await Stripe.instance.initPaymentSheet(
         paymentSheetParameters: SetupPaymentSheetParameters(
           paymentIntentClientSecret: clientSecret,
@@ -146,8 +144,30 @@ class _TopUpPageState extends State<TopUpPage> {
         ),
       );
 
+      // 3. Stripe SDK: Present Sheet
+      // This line awaits until the user completes payment. 
+      // If they cancel or fail, it throws an exception.
       await Stripe.instance.presentPaymentSheet();
 
+      // 4. Confirm with Backend
+      // Only reached if Stripe payment was successful on client side
+      final confirmResponse = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/topUp/confirm'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'paymentIntentId': paymentIntentId,
+        }),
+      );
+
+      if (confirmResponse.statusCode != 200) {
+        final errorData = jsonDecode(confirmResponse.body);
+        throw Exception(errorData['message'] ?? 'Payment confirmation failed on server.');
+      }
+
+      // 5. Navigate to Success Page
       if (mounted) {
         context.pushNamed(
           RouteNames.topUpSuccess,
@@ -156,9 +176,16 @@ class _TopUpPageState extends State<TopUpPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
-        );
+        // Handle specific Stripe cancellation error cleanly if needed
+        if (e is StripeException) {
+           ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Payment cancelled')),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+          );
+        }
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -172,9 +199,8 @@ class _TopUpPageState extends State<TopUpPage> {
     final bool canProceed = _amount != '0.00' && !_isLoading;
 
     return Scaffold(
-      backgroundColor: primaryColor, // DARK BACKGROUND IS CRITICAL FOR YOUR KEYBOARD
+      backgroundColor: primaryColor, 
       
-      // Transparent AppBar
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -195,7 +221,7 @@ class _TopUpPageState extends State<TopUpPage> {
 
       body: Column(
         children: [
-          // 1. Balance Indicator
+          // Balance Indicator
           Container(
             margin: const EdgeInsets.only(top: 10),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -217,7 +243,7 @@ class _TopUpPageState extends State<TopUpPage> {
             ),
           ),
 
-          // 2. Main Amount Display (The Hero)
+          // Main Amount Display
           Expanded(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -260,7 +286,7 @@ class _TopUpPageState extends State<TopUpPage> {
             ),
           ),
 
-          // 3. Quick Chips
+          // Quick Chips
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -295,9 +321,7 @@ class _TopUpPageState extends State<TopUpPage> {
           
           const SizedBox(height: 20),
 
-          // 4. YOUR Custom Keyboard
-          // We anchor it to the bottom. 
-          // Note: Your keyboard widget handles the "Proceed" button internally.
+          // Custom Keyboard
           CustomPinKeyboard(
             onKeyTap: _onKeyTap,
             onBackspace: _onBackspace,

@@ -28,18 +28,37 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
   // Date Filtering
   DateTime _selectedMonth = DateTime.now();
 
+  // Transaction List Data
   List<dynamic> _allTransactions = [];
   List<dynamic> _filteredTransactions = [];
   
-  // Chart Data
+  // Line Chart Data
   List<FlSpot> _chartSpots = [];
   double _maxAmount = 0;
+  
+  // Pie Chart Data
+  List<dynamic> _categoryData = [];
+  int _touchedIndex = -1; // For pie chart animation
+  
   bool _isLoading = true;
+
+  // Colors for Pie Chart categories
+  final List<Color> _categoryColors = [
+    const Color(0xFFB2DD62), // Accent Lime
+    const Color(0xFF2E7D32), // Dark Green
+    const Color(0xFF1E88E5), // Blue
+    const Color(0xFFFDD835), // Yellow
+    const Color(0xFFE53935), // Red
+    const Color(0xFF8E24AA), // Purple
+    const Color(0xFFFB8C00), // Orange
+    const Color(0xFF00ACC1), // Cyan
+    Colors.grey,             // Fallback
+  ];
 
   @override
   void initState() {
     super.initState();
-    _fetchTransactions();
+    _refreshData();
     _searchController.addListener(_onSearchChanged);
   }
 
@@ -54,11 +73,19 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
         _selectedMonth.month + monthsToAdd
       );
     });
-    // Re-apply filters and chart data when month changes
-    _applyFilters(); 
-    _prepareChartData();
+    _refreshData();
   }
 
+  Future<void> _refreshData() async {
+    setState(() => _isLoading = true);
+    await Future.wait([
+      _fetchTransactions(),
+      _fetchCategoryData(),
+    ]);
+    setState(() => _isLoading = false);
+  }
+
+  // ─── API: Transactions ─────────────────────────────────────────────────────
   Future<void> _fetchTransactions() async {
     const storage = secureStorage;
     final token = await storage.read(key: 'token');
@@ -75,14 +102,43 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
         if (data['success'] == true) {
           setState(() {
             _allTransactions = data['items'];
-            _isLoading = false;
           });
           _applyFilters();
-          _prepareChartData(); 
+          _prepareLineChartData(); 
         }
       }
     } catch (e) {
       debugPrint('Error fetching tx: $e');
+    }
+  }
+
+  // ─── API: Category Spending (Pie Chart) ────────────────────────────────────
+  Future<void> _fetchCategoryData() async {
+    const storage = secureStorage;
+    final token = await storage.read(key: 'token');
+    if (token == null) return;
+
+    try {
+      // Construct URL with query parameters for year and month
+      final url = Uri.parse(
+        '${ApiConfig.baseUrl}/transactions/analytics/category/monthly?year=${_selectedMonth.year}&month=${_selectedMonth.month}'
+      );
+
+      final response = await http.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (response.statusCode == 200) {
+        final json = jsonDecode(response.body);
+        if (json['success'] == true) {
+          setState(() {
+            _categoryData = json['data'] ?? [];
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching categories: $e');
     }
   }
 
@@ -99,7 +155,7 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
         if (_filterType == 1) matchesType = tx['role'] == 'RECEIVER';
         if (_filterType == 2) matchesType = tx['role'] == 'SENDER';
 
-        // 2. Month Filter (NEW)
+        // 2. Month Filter
         final txDate = DateTime.parse(tx['transactionDateTime']);
         bool matchesMonth = txDate.year == _selectedMonth.year && 
                             txDate.month == _selectedMonth.month;
@@ -109,24 +165,18 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
     });
   }
 
-  // ─── Logic: Process Data for Chart (Updated for Monthly View) ───────────
-  void _prepareChartData() {
+  // ─── Logic: Line Chart Data ────────────────────────────────────────────────
+  void _prepareLineChartData() {
     Map<int, double> dailyTotals = {};
-    
-    // Determine days in the selected month
     final daysInMonth = DateUtils.getDaysInMonth(_selectedMonth.year, _selectedMonth.month);
     
-    // Initialize all days in month to 0
     for (int i = 1; i <= daysInMonth; i++) {
       dailyTotals[i] = 0.0;
     }
 
-    // Loop through ALL transactions to find ones for this month
     for (var tx in _allTransactions) {
       if (tx['role'] == 'SENDER') { 
         final date = DateTime.parse(tx['transactionDateTime']);
-        
-        // Check if transaction belongs to selected month
         if (date.year == _selectedMonth.year && date.month == _selectedMonth.month) {
           final amount = double.tryParse(tx['amount'].toString()) ?? 0.0;
           dailyTotals[date.day] = (dailyTotals[date.day] ?? 0) + amount;
@@ -136,8 +186,6 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
 
     List<FlSpot> spots = [];
     double max = 0;
-    
-    // Convert map to spots
     dailyTotals.forEach((day, amount) {
       spots.add(FlSpot(day.toDouble(), amount));
       if (amount > max) max = amount;
@@ -145,18 +193,21 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
 
     setState(() {
       _chartSpots = spots;
-      _maxAmount = max + (max * 0.2); // +20% buffer
+      _maxAmount = max + (max * 0.2); 
     });
   }
 
-  // ─── Helper to calculate total for the selected month ───────────────────
   String _calculateTotalForMonth(bool income) {
     double sum = 0;
-    for (var tx in _filteredTransactions) {
-      if (income && tx['role'] == 'RECEIVER') {
-        sum += double.tryParse(tx['amount'].toString()) ?? 0;
-      } else if (!income && tx['role'] == 'SENDER') {
-        sum += double.tryParse(tx['amount'].toString()) ?? 0;
+    // Calculate from ALL transactions for this month, not just filtered list
+    for (var tx in _allTransactions) {
+      final date = DateTime.parse(tx['transactionDateTime']);
+      if (date.year == _selectedMonth.year && date.month == _selectedMonth.month) {
+        if (income && tx['role'] == 'RECEIVER') {
+          sum += double.tryParse(tx['amount'].toString()) ?? 0;
+        } else if (!income && tx['role'] == 'SENDER') {
+          sum += double.tryParse(tx['amount'].toString()) ?? 0;
+        }
       }
     }
     return sum.toStringAsFixed(0);
@@ -173,10 +224,7 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
             children: [
               _buildHeader(),
               const SizedBox(height: 12),
-              
-              // NEW: Month Selector
               _buildMonthSelector(),
-              
               const SizedBox(height: 12),
               
               Expanded(
@@ -193,7 +241,7 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
     );
   }
 
-  // ─── Header ────────────────────────────────────────────────────────────────
+  // ─── Header & Selectors ────────────────────────────────────────────────────
   Widget _buildHeader() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
@@ -201,12 +249,7 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
         children: [
           Text(
             _showChart ? 'Analytics' : 'History',
-            style: const TextStyle(
-              color: primaryColor,
-              fontSize: 26,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.5,
-            ),
+            style: const TextStyle(color: primaryColor, fontSize: 26, fontWeight: FontWeight.w800, letterSpacing: -0.5),
           ),
           const Spacer(),
           GestureDetector(
@@ -221,20 +264,9 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
               ),
               child: Row(
                 children: [
-                  Icon(
-                    _showChart ? Icons.list_rounded : Icons.bar_chart_rounded, 
-                    color: _showChart ? primaryColor : Colors.grey[800],
-                    size: 20
-                  ),
+                  Icon(_showChart ? Icons.list_rounded : Icons.bar_chart_rounded, color: _showChart ? primaryColor : Colors.grey[800], size: 20),
                   const SizedBox(width: 8),
-                  Text(
-                    _showChart ? 'List' : 'Graph',
-                    style: TextStyle(
-                      color: _showChart ? primaryColor : Colors.grey[800],
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13
-                    ),
-                  )
+                  Text(_showChart ? 'List' : 'Graph', style: TextStyle(color: _showChart ? primaryColor : Colors.grey[800], fontWeight: FontWeight.bold, fontSize: 13))
                 ],
               ),
             ),
@@ -244,7 +276,6 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
     );
   }
 
-  // ─── NEW: Month Selector Widget ────────────────────────────────────────────
   Widget _buildMonthSelector() {
     final now = DateTime.now();
     final isFuture = _selectedMonth.year == now.year && _selectedMonth.month == now.month;
@@ -267,31 +298,18 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
             ),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: primaryColor.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(12),
-              ),
+              decoration: BoxDecoration(color: primaryColor.withOpacity(0.05), borderRadius: BorderRadius.circular(12)),
               child: Row(
                 children: [
                   const Icon(Icons.calendar_month_rounded, size: 16, color: primaryColor),
                   const SizedBox(width: 8),
-                  Text(
-                    DateFormat('MMMM yyyy').format(_selectedMonth),
-                    style: const TextStyle(
-                      color: primaryColor,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
-                    ),
-                  ),
+                  Text(DateFormat('MMMM yyyy').format(_selectedMonth), style: const TextStyle(color: primaryColor, fontWeight: FontWeight.w700, fontSize: 14)),
                 ],
               ),
             ),
             IconButton(
               onPressed: isFuture ? null : () => _changeMonth(1),
-              icon: Icon(
-                Icons.chevron_right_rounded, 
-                color: isFuture ? Colors.grey[300] : primaryColor
-              ),
+              icon: Icon(Icons.chevron_right_rounded, color: isFuture ? Colors.grey[300] : primaryColor),
             ),
           ],
         ),
@@ -299,104 +317,14 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
     );
   }
 
-  // ─── Analytics View (Updated X-Axis) ──────────────────────────────────────
+  // ─── ANALYTICS VIEW (Line + Pie Charts) ────────────────────────────────────
   Widget _buildAnalyticsView() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            height: 320,
-            padding: const EdgeInsets.fromLTRB(20, 30, 20, 10),
-            decoration: BoxDecoration(
-              color: primaryColor, 
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [BoxShadow(color: primaryColor.withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 10))],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Spending in ${DateFormat('MMMM').format(_selectedMonth)}', 
-                  style: const TextStyle(color: Colors.white54, fontSize: 14)
-                ),
-                const SizedBox(height: 20),
-                Expanded(
-                  child: LineChart(
-                    LineChartData(
-                      gridData: const FlGridData(show: false),
-                      titlesData: FlTitlesData(
-                        rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                        topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                        leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                        bottomTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            getTitlesWidget: (value, meta) {
-                              // Show generic days (1, 5, 10, 15...)
-                              if (value % 5 == 0 && value > 0) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(top: 8.0),
-                                  child: Text(
-                                    value.toInt().toString(), 
-                                    style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12),
-                                  ),
-                                );
-                              }
-                              return const SizedBox.shrink();
-                            },
-                            interval: 1,
-                          ),
-                        ),
-                      ),
-                      borderData: FlBorderData(show: false),
-                      minX: 1,
-                      maxX: DateUtils.getDaysInMonth(_selectedMonth.year, _selectedMonth.month).toDouble(),
-                      minY: 0,
-                      maxY: _maxAmount == 0 ? 100 : _maxAmount,
-                      lineBarsData: [
-                        LineChartBarData(
-                          spots: _chartSpots.isEmpty 
-                            ? [const FlSpot(0, 0)] 
-                            : _chartSpots,
-                          isCurved: true,
-                          color: accentColor,
-                          barWidth: 3,
-                          isStrokeCapRound: true,
-                          dotData: const FlDotData(show: false),
-                          belowBarData: BarAreaData(
-                            show: true,
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [accentColor.withOpacity(0.3), accentColor.withOpacity(0.0)],
-                            ),
-                          ),
-                        ),
-                      ],
-                      lineTouchData: LineTouchData(
-                        touchTooltipData: LineTouchTooltipData(
-                          getTooltipColor: (_) => Colors.white,
-                          tooltipRoundedRadius: 8,
-                          getTooltipItems: (touchedSpots) {
-                            return touchedSpots.map((LineBarSpot touchedSpot) {
-                              return LineTooltipItem(
-                                'Day ${touchedSpot.x.toInt()}\nRM ${touchedSpot.y.toStringAsFixed(0)}',
-                                const TextStyle(color: primaryColor, fontWeight: FontWeight.bold),
-                              );
-                            }).toList();
-                          },
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          
-          const SizedBox(height: 24),
+          // 1. Overview Cards
           const Text('Monthly Overview', style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold, fontSize: 18)),
           const SizedBox(height: 16),
           Row(
@@ -406,12 +334,201 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
               _statCard('Received', 'RM ${_calculateTotalForMonth(true)}', Icons.arrow_downward_rounded, accentColor),
             ],
           ),
+          const SizedBox(height: 30),
+
+          // 2. Line Chart (Daily Trend)
+          const Text('Spending Trend', style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold, fontSize: 18)),
+          const SizedBox(height: 12),
+          Container(
+            height: 300,
+            padding: const EdgeInsets.fromLTRB(20, 30, 20, 10),
+            decoration: BoxDecoration(
+              color: primaryColor, 
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [BoxShadow(color: primaryColor.withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 10))],
+            ),
+            child: LineChart(
+              LineChartData(
+                gridData: const FlGridData(show: false),
+                titlesData: FlTitlesData(
+                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      getTitlesWidget: (value, meta) {
+                        if (value % 5 == 0 && value > 0) {
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: Text(value.toInt().toString(), style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12)),
+                          );
+                        }
+                        return const SizedBox.shrink();
+                      },
+                      interval: 1,
+                    ),
+                  ),
+                ),
+                borderData: FlBorderData(show: false),
+                minX: 1,
+                maxX: DateUtils.getDaysInMonth(_selectedMonth.year, _selectedMonth.month).toDouble(),
+                minY: 0,
+                maxY: _maxAmount == 0 ? 100 : _maxAmount,
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: _chartSpots.isEmpty ? [const FlSpot(0, 0)] : _chartSpots,
+                    isCurved: true,
+                    color: accentColor,
+                    barWidth: 3,
+                    isStrokeCapRound: true,
+                    dotData: const FlDotData(show: false),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [accentColor.withOpacity(0.3), accentColor.withOpacity(0.0)],
+                      ),
+                    ),
+                  ),
+                ],
+                lineTouchData: LineTouchData(
+                  touchTooltipData: LineTouchTooltipData(
+                    getTooltipColor: (_) => Colors.white,
+                    tooltipRoundedRadius: 8,
+                    getTooltipItems: (touchedSpots) {
+                      return touchedSpots.map((LineBarSpot touchedSpot) {
+                        return LineTooltipItem(
+                          'Day ${touchedSpot.x.toInt()}\nRM ${touchedSpot.y.toStringAsFixed(0)}',
+                          const TextStyle(color: primaryColor, fontWeight: FontWeight.bold),
+                        );
+                      }).toList();
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 30),
+
+          // 3. Pie Chart (Categories)
+          const Text('Spending by Category', style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold, fontSize: 18)),
+          const SizedBox(height: 12),
+          if (_categoryData.isEmpty)
+            Container(
+              height: 200,
+              width: double.infinity,
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+              child: Center(child: Text('No spending data for this month', style: TextStyle(color: Colors.grey[400]))),
+            )
+          else
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
+              ),
+              child: Column(
+                children: [
+                  SizedBox(
+                    height: 200,
+                    child: PieChart(
+                      PieChartData(
+                        pieTouchData: PieTouchData(
+                          touchCallback: (FlTouchEvent event, pieTouchResponse) {
+                            setState(() {
+                              if (!event.isInterestedForInteractions ||
+                                  pieTouchResponse == null ||
+                                  pieTouchResponse.touchedSection == null) {
+                                _touchedIndex = -1;
+                                return;
+                              }
+                              _touchedIndex = pieTouchResponse.touchedSection!.touchedSectionIndex;
+                            });
+                          },
+                        ),
+                        borderData: FlBorderData(show: false),
+                        sectionsSpace: 2, // Spacing between sections
+                        centerSpaceRadius: 40, // Donut hole
+                        sections: _buildPieChartSections(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  // Legend
+                  Column(children: _buildCategoryIndicators()),
+                ],
+              ),
+            ),
+            
+          const SizedBox(height: 40),
         ],
       ),
     );
   }
 
-  // ─── List View ────────────────────────────────────────────────────────────
+  // ─── Pie Chart Logic ───────────────────────────────────────────────────────
+  List<PieChartSectionData> _buildPieChartSections() {
+    return List.generate(_categoryData.length, (i) {
+      final isTouched = i == _touchedIndex;
+      final fontSize = isTouched ? 16.0 : 12.0;
+      final radius = isTouched ? 60.0 : 50.0;
+      
+      final item = _categoryData[i];
+      final amount = double.tryParse(item['totalAmount'].toString()) ?? 0.0;
+      final color = _categoryColors[i % _categoryColors.length];
+
+      return PieChartSectionData(
+        color: color,
+        value: amount,
+        title: '', // Hide text on chart to keep it clean
+        radius: radius,
+        titleStyle: TextStyle(
+          fontSize: fontSize,
+          fontWeight: FontWeight.bold,
+          color: const Color(0xffffffff),
+        ),
+        badgeWidget: isTouched 
+          ? Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 4)]),
+              child: Text('RM${amount.toStringAsFixed(0)}', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+            ) 
+          : null,
+        badgePositionPercentageOffset: 1.2,
+      );
+    });
+  }
+
+  List<Widget> _buildCategoryIndicators() {
+    return List.generate(_categoryData.length, (i) {
+      final item = _categoryData[i];
+      final amount = double.tryParse(item['totalAmount'].toString()) ?? 0.0;
+      final color = _categoryColors[i % _categoryColors.length];
+      final name = item['merchantType'] ?? 'Unknown';
+
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          children: [
+            Container(
+              width: 16, height: 16,
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            ),
+            const SizedBox(width: 12),
+            Text(name, style: const TextStyle(fontWeight: FontWeight.w600, color: primaryColor)),
+            const Spacer(),
+            Text('RM ${amount.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)),
+          ],
+        ),
+      );
+    });
+  }
+
+  // ─── List View Components (Unchanged) ──────────────────────────────────────
   Widget _buildListView() {
     return Column(
       children: [
@@ -419,17 +536,11 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
         const SizedBox(height: 12),
         _buildSearchBar(),
         const SizedBox(height: 10),
-        Expanded(
-          child: _filteredTransactions.isEmpty
-              ? _buildEmptyState()
-              : _buildGroupedList(),
-        ),
+        Expanded(child: _filteredTransactions.isEmpty ? _buildEmptyState() : _buildGroupedList()),
       ],
     );
   }
 
-  // ─── Helper Widgets (Segments, Search, List, Tile) ─────────────────────────
-  
   Widget _statCard(String label, String value, IconData icon, Color color) {
     return Expanded(
       child: Container(
