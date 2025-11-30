@@ -9,6 +9,7 @@ import 'package:nex_pay_app/features/onboarding/biometric_opt_in_page.dart';
 import 'package:nex_pay_app/features/onboarding/setup_security_questions_page.dart';
 import 'package:nex_pay_app/features/outlet/merchant_add_staff_page.dart';
 import 'package:nex_pay_app/features/wallet/waiting_transaction_limit_page.dart';
+import 'package:nex_pay_app/features/withdraw/withdraw_list_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // ========= Auth & Onboarding =========
@@ -105,6 +106,10 @@ import 'package:nex_pay_app/features/transaction/transaction_limit_page.dart';
 import 'package:nex_pay_app/features/transfer/p2p_enter_amount_page.dart';
 import 'package:nex_pay_app/features/transfer/p2p_transfer_success_page.dart';
 import 'package:nex_pay_app/features/wallet/emergency_transfer_success_page.dart';
+import 'package:nex_pay_app/features/withdraw/withdraw_list_page.dart';
+import 'package:nex_pay_app/features/withdraw/make_withdrawal_page.dart';
+import 'package:nex_pay_app/features/withdraw/withdraw_bank_success_page.dart';
+import 'package:nex_pay_app/features/withdraw/withdraw_wallet_success_page.dart';
 
 class RouteNames {
   static const splash = 'splash';
@@ -204,6 +209,10 @@ class RouteNames {
   static const p2pEnterAmountPage = 'p2p-enter-amount-page';
   static const p2pTransferSuccess = 'p2p-transfer-success';
   static const emergencyTransferSuccess = 'emergency-transfer-success';
+  static const withdrawList = 'withdraw-list';
+  static const makeWithdrawal = 'make-withdrawal';
+  static const withdrawBankSuccess = 'withdraw-bank-success';
+  static const withdrawWalletSuccess = 'withdraw-wallet-success';
 }
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -1111,6 +1120,36 @@ final GoRouter appRouter = GoRouter(
         return EmergencyTransferSuccessPage(
           data: extras,
         );
+      },
+    ),
+    GoRoute(
+      name: RouteNames.withdrawList,
+      path: '/withdraw-list',
+      builder: (ctx, st) {
+        return const WithdrawListPage();
+      },
+    ),
+    GoRoute(
+      name: RouteNames.makeWithdrawal,
+      path: '/make-withdrawal',
+      builder: (ctx, st) {
+        return const MakeWithdrawalPage();
+      },
+    ),
+    GoRoute(
+      name: RouteNames.withdrawBankSuccess,
+      path: '/withdraw-bank-success',
+      builder: (ctx, st) {
+        final data = st.extra as Map<String, dynamic>;
+        return WithdrawBankSuccessPage(data: data);
+      },
+    ),
+    GoRoute(
+      name: RouteNames.withdrawWalletSuccess,
+      path: '/withdraw-wallet-success',
+      builder: (ctx, st) {
+        final data = st.extra as Map<String, dynamic>;
+        return WithdrawWalletSuccessPage(data: data);
       },
     ),
   ],

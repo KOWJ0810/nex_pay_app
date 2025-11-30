@@ -64,6 +64,10 @@ class _MerchantAccountPageState extends State<MerchantAccountPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Calculate width for 3 items per row with spacing
+    // Screen width - padding (40) - spacing (24 for 2 gaps) / 3 items
+    final double itemWidth = (MediaQuery.of(context).size.width - 40 - 24) / 3;
+
     return NexMerchantScaffold(
       currentIndex: 2,
       body: isLoading
@@ -199,32 +203,48 @@ class _MerchantAccountPageState extends State<MerchantAccountPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Increased Spacing
-                              const SizedBox(height: 24),
+                              // Spacing
+                              const SizedBox(height: 12),
 
                               // Action Grid
                               const Text("Quick Actions", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: primaryColor)),
                               const SizedBox(height: 16),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              
+                              // NEW: WRAP LAYOUT for Multi-line Actions
+                              Wrap(
+                                spacing: 12, // Horizontal gap
+                                runSpacing: 16, // Vertical gap
+                                alignment: WrapAlignment.start,
                                 children: [
                                   _ActionItem(
+                                    width: itemWidth,
                                     icon: Icons.storefront_rounded, 
                                     label: "Outlets", 
                                     color: Colors.orange,
                                     onTap: () => context.pushNamed(RouteNames.merchantOutletList),
                                   ),
                                   _ActionItem(
+                                    width: itemWidth,
                                     icon: Icons.qr_code_2_rounded, 
                                     label: "Get QR", 
                                     color: accentColor,
                                     onTap: () => context.pushNamed(RouteNames.outletListQrCode),
                                   ),
                                   _ActionItem(
+                                    width: itemWidth,
                                     icon: Icons.link_rounded, 
-                                    label: "Payment Link", 
+                                    label: "Pay Link", 
                                     color: Colors.blueAccent,
                                     onTap: () => context.pushNamed(RouteNames.outletListPaymentLink),
+                                  ),
+                                  
+                                  // NEW WITHDRAW BUTTON
+                                  _ActionItem(
+                                    width: itemWidth,
+                                    icon: Icons.download_rounded, 
+                                    label: "Withdraw", 
+                                    color: Colors.purpleAccent,
+                                    onTap: () => context.pushNamed(RouteNames.withdrawList),
                                   ),
                                 ],
                               ),
@@ -274,15 +294,22 @@ class _ActionItem extends StatelessWidget {
   final String label;
   final Color color;
   final VoidCallback onTap;
+  final double width; // Added width control
 
-  const _ActionItem({required this.icon, required this.label, required this.color, required this.onTap});
+  const _ActionItem({
+    required this.icon, 
+    required this.label, 
+    required this.color, 
+    required this.onTap,
+    required this.width,
+  });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: MediaQuery.of(context).size.width * 0.28, // Dynamic width
+        width: width, // Use dynamic width
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
           color: Colors.white,
@@ -297,7 +324,11 @@ class _ActionItem extends StatelessWidget {
               child: Icon(icon, color: color == accentColor ? const Color(0xFF4A7A00) : color, size: 24),
             ),
             const SizedBox(height: 10),
-            Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: primaryColor)),
+            Text(
+              label, 
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: primaryColor)
+            ),
           ],
         ),
       ),
