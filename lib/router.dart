@@ -110,6 +110,10 @@ import 'package:nex_pay_app/features/withdraw/withdraw_list_page.dart';
 import 'package:nex_pay_app/features/withdraw/make_withdrawal_page.dart';
 import 'package:nex_pay_app/features/withdraw/withdraw_bank_success_page.dart';
 import 'package:nex_pay_app/features/withdraw/withdraw_wallet_success_page.dart';
+import 'package:nex_pay_app/features/report/report_list_page.dart';
+import 'package:nex_pay_app/features/report/submit_report_page.dart';
+import 'package:nex_pay_app/features/report/report_success_page.dart';
+import 'package:nex_pay_app/features/transaction/user_transaction_detail_page.dart';
 
 class RouteNames {
   static const splash = 'splash';
@@ -213,6 +217,10 @@ class RouteNames {
   static const makeWithdrawal = 'make-withdrawal';
   static const withdrawBankSuccess = 'withdraw-bank-success';
   static const withdrawWalletSuccess = 'withdraw-wallet-success';
+  static const reportList = 'report-list';
+  static const submitReport = 'submit-report';
+  static const reportSuccess = 'report-success';
+  static const userTransactionDetail = 'user-transaction-detail';
 }
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -1150,6 +1158,38 @@ final GoRouter appRouter = GoRouter(
       builder: (ctx, st) {
         final data = st.extra as Map<String, dynamic>;
         return WithdrawWalletSuccessPage(data: data);
+      },
+    ),
+    GoRoute(
+      name: RouteNames.reportList,
+      path: '/report-list',
+      builder: (ctx, st) {
+        return const ReportListPage();
+      },
+    ),
+    GoRoute(
+      name: RouteNames.submitReport,
+      path: '/submit-report',
+      builder: (ctx, st) {
+        return const SubmitReportPage();
+      },
+    ),
+    GoRoute(
+      name: RouteNames.reportSuccess,
+      path: '/report-success',
+      builder: (ctx, st) {
+        final reportData = st.extra as Map<String, dynamic>;
+        return ReportSuccessPage(reportData: reportData);
+      },
+    ),
+    GoRoute(
+      name: RouteNames.userTransactionDetail,
+      path: '/user-transaction-detail',
+      builder: (ctx, st) {
+        final extras = st.extra as Map<String, dynamic>;
+        return UserTransactionDetailPage(
+          transactionId: extras['transactionId'] as int,
+        );
       },
     ),
   ],

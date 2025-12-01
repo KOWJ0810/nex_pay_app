@@ -329,7 +329,7 @@ class _AccountPageState extends State<AccountPage> {
                       _NavTile(
                           icon: Icons.bug_report_rounded,
                           title: 'Report a problem',
-                          onTap: _onReport),
+                          onTap: () => context.pushNamed(RouteNames.reportList)),
                     ]),
 
                     const SizedBox(height: 28),
