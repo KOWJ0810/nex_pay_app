@@ -140,38 +140,33 @@ class _MerchantAccountPageState extends State<MerchantAccountPage> {
                                         child: Column(
                                           crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
-                                            // Profile Row
-                                            Row(
+                                            // Merchant Name & Type (Image and Edit button removed)
+                                            Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
                                               children: [
-                                                CircleAvatar(
-                                                  radius: 24,
-                                                  backgroundColor: Colors.white.withOpacity(0.1),
-                                                  backgroundImage: merchantData?['ssmImageUpload'] != null 
-                                                      ? NetworkImage(merchantData!['ssmImageUpload']) 
-                                                      : null,
-                                                  child: merchantData?['ssmImageUpload'] == null 
-                                                      ? const Icon(Icons.store, color: Colors.white70) 
-                                                      : null,
+                                                Text(
+                                                  merchantData?['merchantName'] ?? 'Merchant',
+                                                  style: const TextStyle(
+                                                    color: Colors.white, 
+                                                    fontWeight: FontWeight.bold, 
+                                                    fontSize: 20 // Slightly larger font since image is gone
+                                                  )
                                                 ),
-                                                const SizedBox(width: 12),
-                                                Expanded(
-                                                  child: Column(
-                                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                                    children: [
-                                                      Text(merchantData?['merchantName'] ?? 'Merchant', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                                                      Text(merchantData?['merchantType'] ?? 'Business', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12)),
-                                                    ],
-                                                  ),
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  merchantData?['merchantType'] ?? 'Business', 
+                                                  style: TextStyle(
+                                                    color: Colors.white.withOpacity(0.7), 
+                                                    fontSize: 13
+                                                  )
                                                 ),
-                                                IconButton(
-                                                  onPressed: () {}, // Edit Profile
-                                                  icon: const Icon(Icons.edit_outlined, color: Colors.white70, size: 20),
-                                                )
                                               ],
                                             ),
+                                            
                                             const SizedBox(height: 20),
                                             Divider(color: Colors.white.withOpacity(0.1), height: 1),
                                             const SizedBox(height: 16),
+                                            
                                             // Balance Row (Hero)
                                             Text("Wallet Balance", style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 13)),
                                             const SizedBox(height: 4),

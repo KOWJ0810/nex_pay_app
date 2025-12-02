@@ -4,6 +4,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:nex_pay_app/core/service/secure_storage.dart';
+import 'package:local_auth/local_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/constants/api_config.dart';
 import '../../router.dart';
@@ -27,6 +29,8 @@ class P2PEnterAmountPage extends StatefulWidget {
 class _P2PEnterAmountPageState extends State<P2PEnterAmountPage> {
   final TextEditingController amountController = TextEditingController();
   final TextEditingController noteController = TextEditingController();
+
+  final LocalAuthentication auth = LocalAuthentication();
 
   bool isLoading = false;
   String? errorMessage;
@@ -158,7 +162,7 @@ class _P2PEnterAmountPageState extends State<P2PEnterAmountPage> {
               width: double.infinity,
               height: 55,
               child: ElevatedButton(
-                onPressed: isLoading ? null : _submitTransfer,
+                onPressed: isLoading ? null : _checkBiometricAndSubmit,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: accentColor,
                   disabledBackgroundColor: Colors.grey.shade400,
@@ -183,6 +187,39 @@ class _P2PEnterAmountPageState extends State<P2PEnterAmountPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _checkBiometricAndSubmit() async {
+    final prefs = await SharedPreferences.getInstance();
+    final biometricEnabled = prefs.getBool('biometric_enabled') ?? false;
+
+    if (biometricEnabled) {
+      bool authenticated = false;
+      try {
+        authenticated = await auth.authenticate(
+          localizedReason: 'Please authenticate to proceed with the transfer',
+          options: const AuthenticationOptions(
+            biometricOnly: false,
+            stickyAuth: true,
+            useErrorDialogs: true,
+          ),
+        );
+      } catch (e) {
+        setState(() {
+          errorMessage = "Biometric authentication failed.";
+        });
+        return;
+      }
+
+      if (!authenticated) {
+        setState(() {
+          errorMessage = "Authentication failed or cancelled.";
+        });
+        return;
+      }
+    }
+
+    await _submitTransfer();
   }
 
   // ============================================================
