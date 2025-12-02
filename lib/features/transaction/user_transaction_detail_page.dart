@@ -1,10 +1,13 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nex_pay_app/core/service/secure_storage.dart';
+import 'package:screenshot/screenshot.dart'; // Import Screenshot
+import 'package:gal/gal.dart'; // Import Gal
 import '../../core/constants/api_config.dart';
 import '../../core/constants/colors.dart';
 
@@ -19,8 +22,13 @@ class UserTransactionDetailPage extends StatefulWidget {
 
 class _UserTransactionDetailPageState extends State<UserTransactionDetailPage> {
   final storage = secureStorage;
+  
+  // Screenshot Controller
+  final ScreenshotController _screenshotController = ScreenshotController();
+  
   Map<String, dynamic>? _data;
   bool _isLoading = true;
+  bool _isSaving = false; // For download loading state
   String? _errorMessage;
 
   // Formatters
@@ -50,7 +58,7 @@ class _UserTransactionDetailPageState extends State<UserTransactionDetailPage> {
         final jsonRes = jsonDecode(res.body);
         if (jsonRes['success'] == true) {
           setState(() {
-            _data = jsonRes; // The data is directly at the root based on your JSON structure
+            _data = jsonRes; 
             _isLoading = false;
           });
         } else {
@@ -73,6 +81,46 @@ class _UserTransactionDetailPageState extends State<UserTransactionDetailPage> {
     }
   }
 
+  // ─── DOWNLOAD LOGIC ────────────────────────────────────────────────────────
+  Future<void> _downloadReceipt() async {
+    setState(() => _isSaving = true);
+
+    try {
+      // 1. Permission Check
+      if (!await Gal.hasAccess()) {
+        await Gal.requestAccess();
+      }
+
+      // 2. Capture Image
+      final Uint8List? imageBytes = await _screenshotController.capture();
+
+      if (imageBytes != null) {
+        // 3. Save to Gallery
+        await Gal.putImageBytes(
+          imageBytes, 
+          name: "NexPay_Txn_${widget.transactionId}"
+        );
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Receipt saved to Gallery!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Save failed: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -90,117 +138,165 @@ class _UserTransactionDetailPageState extends State<UserTransactionDetailPage> {
           ),
           onPressed: () => context.pop(),
         ),
+        actions: [
+          // Optional: Top right download icon as well
+          if (!_isLoading && _data != null)
+            IconButton(
+              onPressed: _isSaving ? null : _downloadReceipt,
+              icon: const Icon(Icons.download_rounded, color: Colors.white),
+            )
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: accentColor))
           : _errorMessage != null
               ? Center(child: Text(_errorMessage!, style: const TextStyle(color: Colors.white)))
               : SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.fromLTRB(24, 10, 24, 40),
                   child: Column(
                     children: [
-                      // ─── Amount Hero ───
-                      const SizedBox(height: 20),
-                      Text(
-                        _data?['role'] == 'RECEIVER' ? "Received" : "Paid",
-                        style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 16),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        currencyFormat.format(_data?['amount'] ?? 0),
-                        style: const TextStyle(
-                          fontSize: 42,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          letterSpacing: -1,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          _data?['status'] ?? 'UNKNOWN',
-                          style: const TextStyle(color: accentColor, fontWeight: FontWeight.bold, fontSize: 12),
-                        ),
-                      ),
-
-                      const SizedBox(height: 40),
-
-                      // ─── Receipt Card ───
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(24),
-                          boxShadow: [
-                            BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 20, offset: const Offset(0, 10)),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // 1. Party Info (Who did I pay/receive from?)
-                            if (_data?['counterpartyName'] != null) ...[
-                              _InfoRow(
-                                label: _data?['role'] == 'SENDER' ? "To" : "From",
-                                value: _data!['counterpartyName'],
-                                icon: Icons.person_outline_rounded,
+                      // ─── START SCREENSHOT AREA ───
+                      Screenshot(
+                        controller: _screenshotController,
+                        child: Container(
+                          // Add padding/color here to ensure the saved image looks like the app view
+                          color: primaryColor, 
+                          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                          child: Column(
+                            children: [
+                              // Amount Hero
+                              Text(
+                                _data?['role'] == 'RECEIVER' ? "Received" : "Paid",
+                                style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 16),
                               ),
-                              const SizedBox(height: 20),
-                            ],
-                            
-                            // 2. Merchant Info (If applicable)
-                            if (_data?['merchantName'] != null) ...[
-                              _InfoRow(
-                                label: "Merchant",
-                                value: _data!['merchantName'],
-                                subValue: _data?['outletName'], // Show outlet if available
-                                icon: Icons.storefront_rounded,
+                              const SizedBox(height: 8),
+                              Text(
+                                currencyFormat.format(_data?['amount'] ?? 0),
+                                style: const TextStyle(
+                                  fontSize: 42,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                  letterSpacing: -1,
+                                ),
                               ),
-                              const SizedBox(height: 20),
-                            ],
+                              const SizedBox(height: 10),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  _data?['status'] ?? 'UNKNOWN',
+                                  style: const TextStyle(color: accentColor, fontWeight: FontWeight.bold, fontSize: 12),
+                                ),
+                              ),
 
-                            Divider(color: Colors.grey[200], thickness: 1.5),
-                            const SizedBox(height: 20),
+                              const SizedBox(height: 30),
 
-                            // 3. Technical Details
-                            _DetailRow(label: "Date", value: _formatDate(_data?['transactionDateTime'])),
-                            const SizedBox(height: 12),
-                            _DetailRow(label: "Type", value: _data?['action'] ?? '-'),
-                            const SizedBox(height: 12),
-                            _DetailRow(label: "Payment Method", value: _data?['paymentType'] ?? '-'),
-                            const SizedBox(height: 12),
-                            if (_data?['category'] != null)
-                              _DetailRow(label: "Category", value: _data!['category']),
-                            
-                            const SizedBox(height: 24),
-                            Divider(color: Colors.grey[200], thickness: 1.5),
-                            const SizedBox(height: 24),
+                              // Receipt Card
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(24),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(24),
+                                  boxShadow: [
+                                    BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 20, offset: const Offset(0, 10)),
+                                  ],
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // 1. Party Info
+                                    if (_data?['counterpartyName'] != null) ...[
+                                      _InfoRow(
+                                        label: _data?['role'] == 'SENDER' ? "To" : "From",
+                                        value: _data!['counterpartyName'],
+                                        icon: Icons.person_outline_rounded,
+                                      ),
+                                      const SizedBox(height: 20),
+                                    ],
+                                    
+                                    // 2. Merchant Info
+                                    if (_data?['merchantName'] != null) ...[
+                                      _InfoRow(
+                                        label: "Merchant",
+                                        value: _data!['merchantName'],
+                                        subValue: _data?['outletName'],
+                                        icon: Icons.storefront_rounded,
+                                      ),
+                                      const SizedBox(height: 20),
+                                    ],
 
-                            // 4. Reference
-                            Center(
-                              child: Column(
-                                children: [
-                                  Text("Reference No.", style: TextStyle(color: Colors.grey[400], fontSize: 12)),
-                                  const SizedBox(height: 4),
-                                  SelectableText(
-                                    _data?['transactionRefNum'] ?? '-',
-                                    style: const TextStyle(
-                                      fontFamily: 'monospace',
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                      color: primaryColor,
+                                    Divider(color: Colors.grey[200], thickness: 1.5),
+                                    const SizedBox(height: 20),
+
+                                    // 3. Details
+                                    _DetailRow(label: "Date", value: _formatDate(_data?['transactionDateTime'])),
+                                    const SizedBox(height: 12),
+                                    _DetailRow(label: "Type", value: _data?['action'] ?? '-'),
+                                    const SizedBox(height: 12),
+                                    _DetailRow(label: "Method", value: _data?['paymentType'] ?? '-'),
+                                    const SizedBox(height: 12),
+                                    if (_data?['category'] != null)
+                                      _DetailRow(label: "Category", value: _data!['category']),
+                                    
+                                    const SizedBox(height: 24),
+                                    Divider(color: Colors.grey[200], thickness: 1.5),
+                                    const SizedBox(height: 24),
+
+                                    // 4. Reference
+                                    Center(
+                                      child: Column(
+                                        children: [
+                                          Text("Reference No.", style: TextStyle(color: Colors.grey[400], fontSize: 12)),
+                                          const SizedBox(height: 4),
+                                          SelectableText(
+                                            _data?['transactionRefNum'] ?? '-',
+                                            style: const TextStyle(
+                                              fontFamily: 'monospace',
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.bold,
+                                              color: primaryColor,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                    const SizedBox(height: 10),
+                                    const Center(
+                                      child: Text(
+                                        "NexPay Digital Receipt",
+                                        style: TextStyle(color: Colors.grey, fontSize: 10),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            )
-                          ],
+                            ],
+                          ),
+                        ),
+                      ),
+                      // ─── END SCREENSHOT AREA ───
+
+                      const SizedBox(height: 30),
+
+                      // Download Button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: OutlinedButton.icon(
+                          onPressed: _isSaving ? null : _downloadReceipt,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: accentColor,
+                            side: const BorderSide(color: accentColor),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          ),
+                          icon: _isSaving 
+                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: accentColor, strokeWidth: 2))
+                            : const Icon(Icons.download_rounded),
+                          label: Text(_isSaving ? "Saving..." : "Download Receipt", style: const TextStyle(fontWeight: FontWeight.bold)),
                         ),
                       ),
                     ],

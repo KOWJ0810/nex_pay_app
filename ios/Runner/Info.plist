@@ -64,6 +64,9 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>We need access to save receipts to your gallery.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>We need access to save receipts to your gallery.</string>
 </dict>
 </plist>
