@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:local_auth/local_auth.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nex_pay_app/core/service/secure_storage.dart';
 import 'package:nex_pay_app/router.dart';
@@ -46,6 +47,8 @@ class _EnterAmountPageState extends State<EnterAmountPage> {
   bool _isLoading = false;
   String? _errorMessage;
 
+  final LocalAuthentication auth = LocalAuthentication();
+
   @override
   void dispose() {
     _amountController.dispose();
@@ -53,180 +56,282 @@ class _EnterAmountPageState extends State<EnterAmountPage> {
     super.dispose();
   }
 
+  // 🔥 ALWAYS get logged-in userId from secure storage
+  Future<int?> _getUserId() async {
+    final userIdStr = await _storage.read(key: "user_id");
+    if (userIdStr == null) return null;
+    return int.tryParse(userIdStr);
+  }
+
   Future<void> _sendTransfer() async {
-  setState(() {
-    _errorMessage = null;
-  });
+    setState(() {
+      _errorMessage = null;
+    });
 
-  final amountText = _amountController.text.trim();
-  if (amountText.isEmpty) {
-    setState(() => _errorMessage = 'Please enter an amount.');
-    return;
-  }
-
-  final amount = double.tryParse(amountText);
-  if (amount == null || amount <= 0) {
-    setState(() => _errorMessage = 'Please enter a valid amount.');
-    return;
-  }
-
-  final note = _noteController.text.trim();
-  setState(() => _isLoading = true);
-
-  try {
-    final token = await _storage.read(key: 'token');
-    if (token == null) {
-      setState(() {
-        _errorMessage = 'Authentication token not found.';
-        _isLoading = false;
-      });
+    final amountText = _amountController.text.trim();
+    if (amountText.isEmpty) {
+      setState(() => _errorMessage = 'Please enter an amount.');
       return;
     }
 
-    final url = Uri.parse('${ApiConfig.baseUrl}/qr/pay');
-    final response = await http.post(
-      url,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-      body: jsonEncode({
-        'qrPayload': widget.qrPayload ?? '',
-        'amount': amount,
-        'note': note,
-      }),
-    );
+    final amount = double.tryParse(amountText);
+    if (amount == null || amount <= 0) {
+      setState(() => _errorMessage = 'Please enter a valid amount.');
+      return;
+    }
 
-    final data = jsonDecode(response.body);
+    final note = _noteController.text.trim();
 
-    // -----------------------------
-    // 🚨 1. Check for INSIDE ERROR MESSAGE
-    // -----------------------------
-    if (data['success'] != true) {
-      final msg = data['message']?.toString() ?? 'Transfer failed.';
-      setState(() {
-        _errorMessage = msg;
-        _isLoading = false;
-      });
+    // Biometric check before pay
+    await _checkBiometricBeforePay(amount, note);
+  }
 
-      // --------------------------------------------------
-      //  CONDITION: insufficient balance + MERCHANT_OUTLET
-      // --------------------------------------------------
-      if (msg.toLowerCase().contains("insufficient") &&
-          widget.type == "MERCHANT_OUTLET") {
-        _triggerEmergencyWalletFlow(amount);
+  Future<void> _checkBiometricBeforePay(double amount, String note) async {
+    try {
+      final token = await _storage.read(key: "token");
+      if (token == null) {
+        setState(() => _errorMessage = "Authentication token not found.");
+        return;
       }
 
-      return;
+      // 🔥 fetch userId from secure storage every time
+      final storedUserId = await _getUserId();
+      print("DEBUG: loaded storedUserId = $storedUserId");
+
+      if (storedUserId == null) {
+        setState(() => _errorMessage = "User ID not found in secure storage.");
+        return;
+      }
+
+      // Call backend biometric API
+      final biometricRes = await http.get(
+        Uri.parse("${ApiConfig.baseUrl}/users/$storedUserId/biometric"),
+        headers: {"Authorization": "Bearer $token"},
+      );
+
+      final biometricJson = jsonDecode(biometricRes.body);
+      final enabled = biometricJson["biometric_enable"] == true;
+
+      if (enabled) {
+        final canCheck = await auth.canCheckBiometrics;
+        if (!canCheck) {
+          print("Biometrics not supported. Skipping.");
+          return _callPayAPI(amount, note);
+        }
+
+        final types = await auth.getAvailableBiometrics();
+        print("Available biometrics: $types");
+
+        if (types.isEmpty) {
+          print("No biometric types available.");
+          return _callPayAPI(amount, note);
+        }
+
+        final didAuth = await auth.authenticate(
+          localizedReason: "Verify your identity to continue",
+          options: const AuthenticationOptions(
+            biometricOnly: false,
+            stickyAuth: true,
+            useErrorDialogs: true,
+          ),
+        );
+
+        if (!didAuth) {
+          setState(() => _errorMessage = "Biometric authentication failed.");
+          return;
+        }
+      }
+
+      await _callPayAPI(amount, note);
+
+    } catch (e) {
+      setState(() => _errorMessage = "Biometric check failed: $e");
     }
-
-    // -----------------------------
-    // SUCCESS → redirect
-    // -----------------------------
-    final tx = data['data'];
-    setState(() => _isLoading = false);
-
-    context.pushNamed(
-      RouteNames.transferSuccess,
-      extra: {
-        'type': tx['type'],
-        'transactionId': tx['transactionId'],
-        'transactionRefNum': tx['transactionRefNum'],
-        'amount': tx['amount'],
-        'status': tx['status'],
-        'senderUserId': tx['senderUserId'],
-        'receiverUserId': tx['receiverUserId'],
-        'merchantId': tx['merchantId'],
-        'outletId': tx['outletId'],
-      },
-    );
-  } catch (e) {
-    setState(() {
-      _errorMessage = 'An error occurred: $e';
-      _isLoading = false;
-    });
   }
-}
 
-Future<void> _triggerEmergencyWalletFlow(double amount) async {
-  final token = await _storage.read(key: 'token');
-  if (token == null) return;
+  Future<void> _callPayAPI(double amount, String note) async {
+    setState(() => _isLoading = true);
 
-  try {
-    // ======================================================
-    // STEP 1 — Get emergency sender info
-    // ======================================================
-    final pairingRes = await http.get(
-      Uri.parse("${ApiConfig.baseUrl}/emergency-wallet/pairings/my-sender"),
-      headers: {"Authorization": "Bearer $token"},
-    );
+    try {
+      final token = await _storage.read(key: 'token');
+      if (token == null) {
+        setState(() {
+          _errorMessage = 'Authentication token not found.';
+          _isLoading = false;
+        });
+        return;
+      }
 
-    final pairingJson = jsonDecode(pairingRes.body);
-    if (pairingJson["success"] != true) return;
+      final url = Uri.parse('${ApiConfig.baseUrl}/qr/pay');
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'qrPayload': widget.qrPayload ?? '',
+          'amount': amount,
+          'note': note,
+        }),
+      );
 
-    final pairing = pairingJson["data"];
-    final pairingId = pairing["pairingId"];
+      final data = jsonDecode(response.body);
 
-    // ======================================================
-    // STEP 2 — Ask user if they want to use emergency wallet
-    // ======================================================
-    if (!mounted) return;
+      if (data['success'] != true) {
+        final msg = data['message']?.toString() ?? 'Transfer failed.';
+        setState(() {
+          _errorMessage = msg;
+          _isLoading = false;
+        });
 
-    final shouldPay = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Insufficient Balance"),
-        content: Text(
-          "Would you like to pay using your emergency sender (${pairing['partner']['name']})?",
+        if (msg.toLowerCase().contains("insufficient") &&
+            widget.type == "MERCHANT_OUTLET") {
+          _triggerEmergencyWalletFlow(amount);
+        }
+
+        return;
+      }
+
+      final tx = data['data'];
+      setState(() => _isLoading = false);
+
+      context.pushNamed(
+        RouteNames.transferSuccess,
+        extra: {
+          'type': tx['type'],
+          'transactionId': tx['transactionId'],
+          'transactionRefNum': tx['transactionRefNum'],
+          'amount': tx['amount'],
+          'status': tx['status'],
+          'senderUserId': tx['senderUserId'],
+          'receiverUserId': tx['receiverUserId'],
+          'merchantId': tx['merchantId'],
+          'outletId': tx['outletId'],
+        },
+      );
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'An error occurred: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _triggerEmergencyWalletFlow(double amount) async {
+    final token = await _storage.read(key: 'token');
+    if (token == null) return;
+
+    try {
+      // STEP 1 — get pairing info
+      final pairingRes = await http.get(
+        Uri.parse("${ApiConfig.baseUrl}/emergency-wallet/pairings/my-sender"),
+        headers: {"Authorization": "Bearer $token"},
+      );
+
+      final pairingJson = jsonDecode(pairingRes.body);
+      if (pairingJson["success"] != true) return;
+
+      final pairing = pairingJson["data"];
+      final pairingId = pairing["pairingId"];
+
+      // STEP 2 — ask user to confirm
+      if (!mounted) return;
+
+      final shouldPay = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text("Insufficient Balance"),
+          content: Text(
+            "Would you like to pay using your emergency sender (${pairing['partner']['name']})?",
+          ),
+          actions: [
+            TextButton(
+              child: const Text("Cancel"),
+              onPressed: () => Navigator.pop(context, false),
+            ),
+            ElevatedButton(
+              style:
+                  ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text("Use Emergency Wallet"),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            child: const Text("Cancel"),
-            onPressed: () => Navigator.pop(context, false),
+      );
+
+      if (shouldPay != true) return;
+
+      // STEP 3 — call emergency payment API
+      final payRes = await http.post(
+        Uri.parse("${ApiConfig.baseUrl}/emergency-wallet/payments"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+        body: jsonEncode({
+          "pairingId": pairingId,
+          "amount": amount,
+          "qrPayload": widget.qrPayload ?? "",
+        }),
+      );
+
+      final payJson = jsonDecode(payRes.body);
+
+      if (payRes.statusCode != 200 || payJson["success"] != true) {
+        final msg = payJson["message"]?.toString() ??
+            "Emergency payment failed. (Code ${payRes.statusCode})";
+
+        if (!mounted) return;
+
+        await showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text("Payment Failed"),
+            content: Text(msg),
+            actions: [
+              TextButton(
+                child: const Text("OK"),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text("Use Emergency Wallet"),
-          ),
-        ],
-      ),
-    );
+        );
 
-    if (shouldPay != true) return;
+        return;
+      }
 
-    // ======================================================
-    // STEP 3 — Call emergency payment API
-    // ======================================================
-    final payRes = await http.post(
-      Uri.parse("${ApiConfig.baseUrl}/emergency-wallet/payments"),
-      headers: {
-        "Authorization": "Bearer $token",
-        "Content-Type": "application/json",
-      },
-      body: jsonEncode({
-        "pairingId": pairingId,
-        "amount": amount,
-        "qrPayload": widget.qrPayload ?? "",
-      }),
-    );
+      // SUCCESS
+      final d = payJson["data"];
+      if (!mounted) return;
 
-    final payJson = jsonDecode(payRes.body);
-
-    // -----------------------------
-    // ❌ FAILURE HANDLING
-    // -----------------------------
-    if (payRes.statusCode != 200 || payJson["success"] != true) {
-      final msg = payJson["message"]?.toString() ??
-          "Emergency payment failed. (Code ${payRes.statusCode})";
+      context.pushNamed(
+        RouteNames.emergencyTransferSuccess,
+        extra: {
+          "paymentId": d["paymentId"],
+          "paymentStatus": d["paymentStatus"],
+          "transactionId": d["transactionId"],
+          "transactionRefNum": d["transactionRefNum"],
+          "amount": d["amount"],
+          "senderUserId": d["senderUserId"],
+          "receiverUserId": d["receiverUserId"],
+          "merchantId": d["merchantId"],
+          "outletId": d["outletId"],
+          "merchantName": d["merchantName"],
+          "outletName": d["outletName"],
+          "transactionDateTime": d["transactionDateTime"],
+        },
+      );
+    } catch (e) {
+      print("Emergency wallet error: $e");
 
       if (!mounted) return;
 
       await showDialog(
         context: context,
         builder: (_) => AlertDialog(
-          title: const Text("Payment Failed"),
-          content: Text(msg),
+          title: const Text("Unexpected Error"),
+          content: Text(e.toString()),
           actions: [
             TextButton(
               child: const Text("OK"),
@@ -235,53 +340,8 @@ Future<void> _triggerEmergencyWalletFlow(double amount) async {
           ],
         ),
       );
-
-      return;
     }
-
-    // -----------------------------
-    // ✅ SUCCESS — redirect
-    // -----------------------------
-    final d = payJson["data"];
-    if (!mounted) return;
-
-    context.pushNamed(
-      RouteNames.emergencyTransferSuccess,
-      extra: {
-        "paymentId": d["paymentId"],
-        "paymentStatus": d["paymentStatus"],
-        "transactionId": d["transactionId"],
-        "transactionRefNum": d["transactionRefNum"],
-        "amount": d["amount"],
-        "senderUserId": d["senderUserId"],
-        "receiverUserId": d["receiverUserId"],
-        "merchantId": d["merchantId"],
-        "outletId": d["outletId"],
-        "merchantName": d["merchantName"],
-        "outletName": d["outletName"],
-        "transactionDateTime": d["transactionDateTime"],
-      },
-    );
-  } catch (e) {
-    print("Emergency wallet error: $e");
-
-    if (!mounted) return;
-
-    await showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text("Unexpected Error"),
-        content: Text(e.toString()),
-        actions: [
-          TextButton(
-            child: const Text("OK"),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ],
-      ),
-    );
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -291,7 +351,8 @@ Future<void> _triggerEmergencyWalletFlow(double amount) async {
         centerTitle: true,
         title: const Text(
           'Send Money',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 20),
+          style: TextStyle(
+              color: Colors.white, fontWeight: FontWeight.w600, fontSize: 20),
         ),
         iconTheme: const IconThemeData(color: Colors.white),
         elevation: 0,
@@ -319,7 +380,8 @@ Future<void> _triggerEmergencyWalletFlow(double amount) async {
                   ),
                 ],
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
               child: Row(
                 children: [
                   Container(
@@ -338,12 +400,16 @@ Future<void> _triggerEmergencyWalletFlow(double amount) async {
                   Expanded(
                     child: Builder(
                       builder: (context) {
-                        final displayTitle = widget.type == 'MERCHANT_OUTLET'
-                            ? (widget.merchantName ?? 'Unknown Merchant')
-                            : (widget.userName ?? 'Unknown User');
-                        final displaySubtitle = widget.type == 'MERCHANT_OUTLET'
-                            ? (widget.outletName ?? '-')
-                            : (widget.userPhone ?? '-');
+                        final displayTitle =
+                            widget.type == 'MERCHANT_OUTLET'
+                                ? (widget.merchantName ?? 'Unknown Merchant')
+                                : (widget.userName ?? 'Unknown User');
+
+                        final displaySubtitle =
+                            widget.type == 'MERCHANT_OUTLET'
+                                ? (widget.outletName ?? '-')
+                                : (widget.userPhone ?? '-');
+
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -375,7 +441,8 @@ Future<void> _triggerEmergencyWalletFlow(double amount) async {
             const SizedBox(height: 28),
             TextField(
               controller: _amountController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
               decoration: InputDecoration(
                 prefixIcon: const Padding(
                   padding: EdgeInsets.only(left: 16, right: 8),
@@ -386,20 +453,21 @@ Future<void> _triggerEmergencyWalletFlow(double amount) async {
                 labelStyle: const TextStyle(color: Colors.grey),
                 filled: true,
                 fillColor: Colors.white,
-                contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                contentPadding: const EdgeInsets.symmetric(
+                    vertical: 16, horizontal: 20),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(30),
                   borderSide: BorderSide.none,
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(30),
-                  borderSide: BorderSide(color: accentColor, width: 2),
+                  borderSide:
+                      BorderSide(color: accentColor, width: 2),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(30),
                   borderSide: BorderSide.none,
                 ),
-                // Shadow via Material widget below
               ),
               style: const TextStyle(fontSize: 16),
             ),
@@ -416,14 +484,16 @@ Future<void> _triggerEmergencyWalletFlow(double amount) async {
                 labelStyle: const TextStyle(color: Colors.grey),
                 filled: true,
                 fillColor: Colors.white,
-                contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                contentPadding: const EdgeInsets.symmetric(
+                    vertical: 16, horizontal: 20),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(30),
                   borderSide: BorderSide.none,
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(30),
-                  borderSide: BorderSide(color: accentColor, width: 2),
+                  borderSide:
+                      BorderSide(color: accentColor, width: 2),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(30),
@@ -441,12 +511,18 @@ Future<void> _triggerEmergencyWalletFlow(double amount) async {
                 decoration: BoxDecoration(
                   gradient: _isLoading
                       ? LinearGradient(
-                          colors: [accentColor.withOpacity(0.6), accentColor.withOpacity(0.5)],
+                          colors: [
+                            accentColor.withOpacity(0.6),
+                            accentColor.withOpacity(0.5)
+                          ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         )
                       : LinearGradient(
-                          colors: [accentColor, accentColor.withOpacity(0.8)],
+                          colors: [
+                            accentColor,
+                            accentColor.withOpacity(0.8)
+                          ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),

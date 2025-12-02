@@ -13,8 +13,6 @@ import '../../router.dart' show RouteNames;
 import 'package:http/http.dart' as http;
 import '../../core/constants/api_config.dart';
 
-
-// testing 
 class AccountPage extends StatefulWidget {
   const AccountPage({super.key});
 
@@ -29,10 +27,7 @@ class _AccountPageState extends State<AccountPage> {
   String? userId;
   final FlutterSecureStorage _secureStorage = secureStorage;
 
-  bool _pushNoti = true;
-  bool _marketingNoti = false;
-  bool _biometrics = true;
-
+  bool _biometrics = false;
   bool _hasStaffAccount = false;
 
   static const double _extraFabClearance = 76;
@@ -55,12 +50,15 @@ class _AccountPageState extends State<AccountPage> {
     final ph = await _secureStorage.read(key: 'user_phone');
     final em = await _secureStorage.read(key: 'user_email');
     final id = await _secureStorage.read(key: 'user_id');
+    final prefs = await SharedPreferences.getInstance();
+    final bio = prefs.getBool('biometric_enabled');
 
     setState(() {
       fullName = name ?? 'Guest User';
       phone = ph ?? '+60 --- ----';
       email = em ?? 'example@email.com';
       userId = id ?? 'UID-XXXX-XXXX';
+      if (bio != null) _biometrics = bio;
     });
   }
 
@@ -179,14 +177,7 @@ class _AccountPageState extends State<AccountPage> {
                                   ],
                                 ),
                               ),
-                              const SizedBox(width: 8),
-                              TextButton(
-                                onPressed: _onEditProfile,
-                                child: const Text('Edit',
-                                    style: TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w700)),
-                              ),
+  
                             ],
                           ),
                         ),
@@ -212,47 +203,45 @@ class _AccountPageState extends State<AccountPage> {
                   children: [
                     _SectionHeader('Basic Information'),
                     _CardSection(children: [
+                      // Arrow removed by passing empty trailing and null onTap
                       _InfoTile(
                           icon: Icons.badge_rounded,
                           title: 'Full name',
                           value: fullName ?? 'Loading...',
-                          onTap: _onEditProfile),
+                          trailing: const SizedBox.shrink(),
+                          onTap: null),
                       _InfoTile(
                           icon: Icons.phone_rounded,
                           title: 'Phone',
                           value: phone ?? 'Loading...',
-                          onTap: _onEditPhone),
+                          trailing: const SizedBox.shrink(),
+                          onTap: null),
                       _InfoTile(
                           icon: Icons.mail_rounded,
                           title: 'Email',
                           value: email ?? 'Loading...',
-                          onTap: _onEditEmail),
+                          trailing: const SizedBox.shrink(),
+                          onTap: null),
+                      // User ID Removed
                       _InfoTile(
-                        icon: Icons.fingerprint_rounded,
-                        title: 'User ID',
-                        value: userId ?? 'Loading...',
-                        trailing: const Icon(Icons.copy_rounded, size: 18),
-                        onTap: _copyUserId,
-                      ),
-                    _InfoTile(
                         icon: Icons.savings_rounded,
                         title: 'Piggy Bank',
                         value: 'Set your financial goals here',
                         onTap: () => context.pushNamed(RouteNames.goalList),
-                    ),
-                    _InfoTile(
-                      icon: Icons.storefront_rounded,
-                      title: 'Merchant Account',
-                      value: 'Manage or register your merchant account',
-                      onTap: _handleMerchantAccount,
-                    ),
-                    if (_hasStaffAccount)
-                      _InfoTile(
-                        icon: Icons.computer_rounded,
-                        title: 'Staff Account',
-                        value: 'Manage your assigned outlets',
-                        onTap: () => context.pushNamed(RouteNames.staffOutletList),
                       ),
+                      _InfoTile(
+                        icon: Icons.storefront_rounded,
+                        title: 'Merchant Account',
+                        value: 'Manage or register your merchant account',
+                        onTap: _handleMerchantAccount,
+                      ),
+                      if (_hasStaffAccount)
+                        _InfoTile(
+                          icon: Icons.computer_rounded,
+                          title: 'Staff Account',
+                          value: 'Manage your assigned outlets',
+                          onTap: () => context.pushNamed(RouteNames.staffOutletList),
+                        ),
                     ]),
 
                     const SizedBox(height: 16),
@@ -262,12 +251,35 @@ class _AccountPageState extends State<AccountPage> {
                         icon: Icons.face_rounded,
                         title: 'Biometrics (Face/Touch ID)',
                         value: _biometrics,
-                        onChanged: (v) => setState(() => _biometrics = v),
+                        onChanged: (v) async {
+                          setState(() => _biometrics = v);
+
+                          final prefs = await SharedPreferences.getInstance();
+                          await prefs.setBool('biometric_enabled', v);
+
+                          final token = await secureStorage.read(key: 'token');
+                          final userId =
+                              await secureStorage.read(key: 'user_id');
+                          if (token == null || userId == null) return;
+
+                          try {
+                            await http.put(
+                              Uri.parse(
+                                  '${ApiConfig.baseUrl}/users/$userId/biometric'),
+                              headers: {
+                                'Authorization': 'Bearer $token',
+                                'Content-Type': 'application/json',
+                              },
+                              body: jsonEncode({'biometric_enable': v}),
+                            );
+                          } catch (_) {}
+                        },
                       ),
                       _NavTile(
                         icon: Icons.shield_rounded,
                         title: 'Change PIN / Password',
-                        onTap: () => context.pushNamed(RouteNames.cpEnterCurrentPin),
+                        onTap: () =>
+                            context.pushNamed(RouteNames.cpEnterCurrentPin),
                       ),
                       _NavTile(
                         icon: Icons.devices_other_rounded,
@@ -278,58 +290,30 @@ class _AccountPageState extends State<AccountPage> {
                       _NavTile(
                         icon: Icons.wallet_rounded,
                         title: 'Emergency Wallet',
-                        onTap: () => context.pushNamed(RouteNames.emergencyWallet),
+                        onTap: () =>
+                            context.pushNamed(RouteNames.emergencyWallet),
                       ),
                       _NavTile(
                         icon: Icons.money_off_rounded,
                         title: 'Transaction Limit',
-                        onTap: () => context.pushNamed(RouteNames.transactionLimit),
+                        onTap: () =>
+                            context.pushNamed(RouteNames.transactionLimit),
                       ),
                     ]),
 
-                    const SizedBox(height: 16),
-                    _SectionHeader('Notifications'),
-                    _CardSection(children: [
-                      _SwitchTile(
-                        icon: Icons.notifications_active_rounded,
-                        title: 'Push notifications',
-                        value: _pushNoti,
-                        onChanged: (v) => setState(() => _pushNoti = v),
-                      ),
-                      _SwitchTile(
-                        icon: Icons.campaign_rounded,
-                        title: 'Promotions & updates',
-                        value: _marketingNoti,
-                        onChanged: (v) => setState(() => _marketingNoti = v),
-                      ),
-                    ]),
+                    // Notifications Section Removed
 
-                    const SizedBox(height: 16),
-                    _SectionHeader('Privacy'),
-                    _CardSection(children: [
-                      _NavTile(
-                          icon: Icons.privacy_tip_rounded,
-                          title: 'Privacy policy',
-                          onTap: () =>
-                              _openWeb('https://example.com/privacy')),
-                      _NavTile(
-                          icon: Icons.description_rounded,
-                          title: 'Terms of service',
-                          onTap: () =>
-                              _openWeb('https://example.com/terms')),
-                    ]),
+                    // Privacy Section Removed
 
                     const SizedBox(height: 16),
                     _SectionHeader('Support'),
                     _CardSection(children: [
-                      _NavTile(
-                          icon: Icons.help_center_rounded,
-                          title: 'Help center',
-                          onTap: _onHelp),
+                      // Help Center Removed
                       _NavTile(
                           icon: Icons.bug_report_rounded,
                           title: 'Report a problem',
-                          onTap: () => context.pushNamed(RouteNames.reportList)),
+                          onTap: () =>
+                              context.pushNamed(RouteNames.reportList)),
                     ]),
 
                     const SizedBox(height: 28),
@@ -374,59 +358,48 @@ class _AccountPageState extends State<AccountPage> {
 
   // ─────────── Logout logic ───────────
   Future<void> _confirmLogout() async {
-  final ok = await showDialog<bool>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Text('Log out?'),
-      content: const Text('You’ll need to sign in again to access your account.'),
-      actions: [
-        TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel')),
-        ElevatedButton(
-          onPressed: () => Navigator.pop(context, true),
-          style: ElevatedButton.styleFrom(
-              backgroundColor: primaryColor,
-              foregroundColor: Colors.white),
-          child: const Text('Log out'),
-        ),
-      ],
-    ),
-  );
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Log out?'),
+        content:
+            const Text('You’ll need to sign in again to access your account.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: primaryColor, foregroundColor: Colors.white),
+            child: const Text('Log out'),
+          ),
+        ],
+      ),
+    );
 
-  if (ok == true && mounted) {
-    final prefs = await SharedPreferences.getInstance();
+    if (ok == true && mounted) {
+      final prefs = await SharedPreferences.getInstance();
 
-    final deviceId = prefs.getString('device_id');
-    await prefs.clear();
-    if (deviceId != null) {
-      await prefs.setString('device_id', deviceId);
+      final deviceId = prefs.getString('device_id');
+      await prefs.clear();
+      if (deviceId != null) {
+        await prefs.setString('device_id', deviceId);
+      }
+
+      const secure = secureStorage;
+      await secure.deleteAll();
+
+      _toast('Signed out');
+
+      await Future.delayed(const Duration(milliseconds: 400));
+      if (!mounted) return;
+      context.goNamed(RouteNames.login);
     }
-
-    const secure = secureStorage;
-    await secure.deleteAll();
-
-    _toast('Signed out');
-
-    await Future.delayed(const Duration(milliseconds: 400));
-    if (!mounted) return;
-    context.goNamed(RouteNames.login);
   }
-}
 
   // ─────────── Helper methods ───────────
   void _onEditProfile() => _toast('Edit profile (coming soon)');
-  void _onEditPhone() => _toast('Change phone (coming soon)');
-  void _onEditEmail() => _toast('Change email (coming soon)');
-  void _onChangePin() => _toast('Change PIN / Password (coming soon)');
-  void _onHelp() => _toast('Help center (coming soon)');
-  void _onReport() => _toast('Report a problem (coming soon)');
-  void _openWeb(String url) => _toast('Open: $url');
-
-  void _copyUserId() {
-    _toast('User ID copied');
-  }
-
   void _toast(String msg) {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(msg)));
@@ -466,15 +439,13 @@ class _AccountPageState extends State<AccountPage> {
         } else {
           context.goNamed(RouteNames.merchantRegisterLanding);
         }
-      }
-      else if (res.statusCode == 404) {
+      } else if (res.statusCode == 404) {
         final jsonRes = jsonDecode(res.body);
         if (jsonRes['success'] == false) {
           context.goNamed(RouteNames.merchantRegisterLanding);
           return;
         }
-      }
-      else {
+      } else {
         _toast('Server error: ${res.statusCode}');
       }
     } catch (e) {
