@@ -61,7 +61,7 @@ class _LoginPageState extends State<LoginPage> {
       _isLoading = true;
       errorMessage = '';
     });
-
+    
     bool navigated = false;
 
     Future<String> _ensureDeviceId() async {
@@ -135,6 +135,191 @@ class _LoginPageState extends State<LoginPage> {
       }
     }
 
+    // --- Email MFA helper ---
+    Future<bool> _performEmailMfa(String email) async {
+      if (email.isEmpty) {
+        // If no email is available, skip MFA gracefully
+        return true;
+      }
+
+      // 1) Ask backend to send OTP to the given email
+      try {
+        final sendUrl = Uri.parse('${ApiConfig.baseUrl}/otp/send');
+        final sendRes = await http.post(
+          sendUrl,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode({'email': email}),
+        );
+
+        debugPrint('[login][mfa] send OTP status: ${sendRes.statusCode} body: ${sendRes.body}');
+
+        if (sendRes.statusCode != 200) {
+          try {
+            final data = jsonDecode(sendRes.body) as Map<String, dynamic>;
+            final msg = (data['message'] ?? 'Failed to send verification email.').toString();
+            if (mounted) {
+              setState(() {
+                errorMessage = msg;
+              });
+            }
+          } catch (_) {
+            if (mounted) {
+              setState(() {
+                errorMessage = 'Failed to send verification email.';
+              });
+            }
+          }
+          return false;
+        }
+      } catch (e) {
+        debugPrint('[login][mfa] send OTP exception: $e');
+        if (mounted) {
+          setState(() {
+            errorMessage = 'Failed to send verification email. Please try again.';
+          });
+        }
+        return false;
+      }
+
+      // 2) Show a dialog for user to input the OTP and verify via backend
+      String otp = '';
+      String? localError;
+      bool verifying = false;
+
+      final bool? result = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) {
+          return StatefulBuilder(
+            builder: (ctx, setStateDialog) {
+              return AlertDialog(
+                title: const Text('Verify your email'),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('We\'ve sent a verification code to:\n$email'),
+                    const SizedBox(height: 12),
+                    TextField(
+                      keyboardType: TextInputType.number,
+                      maxLength: 6,
+                      decoration: const InputDecoration(
+                        labelText: 'OTP code',
+                        counterText: '',
+                      ),
+                      onChanged: (val) {
+                        setStateDialog(() {
+                          otp = val.trim();
+                          localError = null;
+                        });
+                      },
+                    ),
+                    if (localError != null) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        localError!,
+                        style: const TextStyle(color: Colors.redAccent),
+                      ),
+                    ],
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: verifying
+                        ? null
+                        : () {
+                            Navigator.of(ctx).pop(false);
+                          },
+                    child: const Text('Cancel'),
+                  ),
+                  TextButton(
+                    onPressed: (!verifying && otp.isNotEmpty)
+                        ? () async {
+                            setStateDialog(() {
+                              verifying = true;
+                              localError = null;
+                            });
+
+                            try {
+                              final verifyUrl = Uri.parse('${ApiConfig.baseUrl}/otp/verify');
+                              final verifyRes = await http.post(
+                                verifyUrl,
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                },
+                                body: jsonEncode({
+                                  'email': email,
+                                  'otp': otp,
+                                }),
+                              );
+
+                              debugPrint('[login][mfa] verify OTP status: ${verifyRes.statusCode} body: ${verifyRes.body}');
+
+                              // Treat any 200 as success, regardless of body format
+                              if (verifyRes.statusCode == 200) {
+                                Navigator.of(ctx).pop(true);
+                                return;
+                              }
+
+                              // Non-200: try to extract a meaningful error message
+                              String backendMsg = 'Invalid code. Please try again.';
+                              try {
+                                final decoded = jsonDecode(verifyRes.body);
+                                if (decoded is Map<String, dynamic>) {
+                                  backendMsg = (decoded['message'] ?? backendMsg).toString();
+                                } else if (decoded is String) {
+                                  backendMsg = decoded;
+                                }
+                              } catch (_) {
+                                if (verifyRes.body.isNotEmpty) {
+                                  backendMsg = verifyRes.body;
+                                }
+                              }
+
+                              setStateDialog(() {
+                                verifying = false;
+                                localError = backendMsg;
+                              });
+                            } catch (e) {
+                              debugPrint('[login][mfa] verify OTP exception: $e');
+                              setStateDialog(() {
+                                verifying = false;
+                                localError = 'Network error. Please try again.';
+                              });
+                            }
+                          }
+                        : null,
+                    child: verifying
+                        ? const SizedBox(
+                            height: 18,
+                            width: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Verify'),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+
+      if (result == true) {
+        return true;
+      }
+
+      if (mounted) {
+        setState(() {
+          if (errorMessage.isEmpty) {
+            errorMessage = 'Email verification was cancelled or failed.';
+          }
+        });
+      }
+      return false;
+    }
+
     try {
       // 1) login
       final loginUrl = Uri.parse('${ApiConfig.baseUrl}/users/login');
@@ -149,15 +334,26 @@ class _LoginPageState extends State<LoginPage> {
       );
       debugPrint('[login] login status: ${loginRes.statusCode} body: ${loginRes.body}');
 
+      // Decode JSON once so we can reuse it for both success and error cases
+      Map<String, dynamic> loginData = {};
+      try {
+        loginData = jsonDecode(loginRes.body) as Map<String, dynamic>;
+      } catch (e) {
+        debugPrint('[login] JSON decode error: $e');
+      }
+
+      // If backend returned non-200, show backend message instead of generic error
       if (loginRes.statusCode != 200) {
+        final backendMsg =
+            (loginData['message'] ?? 'Login failed. Please try again.').toString();
+
         if (!mounted) return;
         setState(() {
-          errorMessage = 'Server error (${loginRes.statusCode}). Please try again later.';
+          errorMessage = backendMsg;
         });
         return;
       }
 
-      final loginData = jsonDecode(loginRes.body) as Map<String, dynamic>;
       final bool loggedInOK = loginData['success'] == true;
       final token = (loginData['token'] ?? '').toString();
       final userObj = (loginData['user'] ?? {}) as Map<String, dynamic>;
@@ -168,7 +364,7 @@ class _LoginPageState extends State<LoginPage> {
 
       final backendPhone = (userObj['phoneNum'] ?? phone).toString();
       final backendEmail = (userObj['email'] ?? '').toString();
-      final backendName = (userObj['user_name'] ?? '').toString();
+      final backendName = (userObj['username'] ?? '').toString();
       final backendStatus = (userObj['user_status'] ?? '').toString();
 
       debugPrint('[login] loggedInOK: $loggedInOK');
@@ -189,14 +385,12 @@ class _LoginPageState extends State<LoginPage> {
       await _secure.write(key: 'user_id', value: '$backendUserId');
       await _secure.write(key: 'user_phone', value: backendPhone);
       await _secure.write(key: 'user_email', value: backendEmail);
-      await _secure.write(key: 'user_name', value: backendName);
+      await _secure.write(key: 'username', value: backendName);
       await _secure.write(key: 'user_status', value: backendStatus);
 
       // 🔐 Also persist creds for AppLockGate silent login (biometric unlock):
       await _secure.write(key: 'phone_number', value: phone);
       await _secure.write(key: 'password', value: pin); // your PIN-as-password
-
-      
 
       // 3) Decide biometric opt-in routing BEFORE device checks
       final prefs = await SharedPreferences.getInstance();
@@ -243,6 +437,13 @@ class _LoginPageState extends State<LoginPage> {
 
       // A) trusted
       if (checkDeviceRes.statusCode == 200) {
+        // Perform email MFA before finalizing login
+        final mfaOk = await _performEmailMfa(backendEmail);
+        if (!mfaOk) {
+          // _performEmailMfa already set a user-facing error message
+          return;
+        }
+
         await prefs.setBool('is_logged_in', true);
         await prefs.setString('device_id', localDeviceId);
 
@@ -271,6 +472,13 @@ class _LoginPageState extends State<LoginPage> {
           return;
         }
 
+        // After registering this new device, perform email MFA
+        final mfaOk = await _performEmailMfa(backendEmail);
+        if (!mfaOk) {
+          // _performEmailMfa already set a user-facing error message
+          return;
+        }
+
         await prefs.setBool('is_logged_in', true);
         await prefs.setString('device_id', localDeviceId);
 
@@ -294,20 +502,33 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
 
-      // D) user not found (400)
+      // D) user not found (400) — show backend message
       if (checkDeviceRes.statusCode == 400) {
+        final data = jsonDecode(checkDeviceRes.body);
+        final backendMsg = (data['message'] ?? 'Something went wrong.').toString();
+
         if (!mounted) return;
         setState(() {
-          errorMessage = 'User not found';
+          errorMessage = backendMsg;
         });
         return;
       }
 
-      // E) anything else
-      if (!mounted) return;
-      setState(() {
-        errorMessage = 'Unexpected response (${checkDeviceRes.statusCode}).';
-      });
+      // E) anything else — show backend message if available
+      try {
+        final data = jsonDecode(checkDeviceRes.body);
+        final backendMsg = (data['message'] ?? 'Unexpected error.').toString();
+
+        if (!mounted) return;
+        setState(() {
+          errorMessage = backendMsg;
+        });
+      } catch (_) {
+        if (!mounted) return;
+        setState(() {
+          errorMessage = 'Unexpected response (${checkDeviceRes.statusCode}).';
+        });
+      }
       return;
     } catch (e) {
       debugPrint('[login] CATCH exception: $e');
@@ -327,6 +548,8 @@ class _LoginPageState extends State<LoginPage> {
       builder: (_) => AlertDialog(
         title: const Text('Forgot PIN'),
         content: const Text(
+
+          
           'Please contact support or reset your PIN from the main app (to be implemented).',
         ),
         actions: [

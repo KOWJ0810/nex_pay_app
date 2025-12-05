@@ -598,7 +598,7 @@ final GoRouter appRouter = GoRouter(
         final extra = state.extra as Map<String, dynamic>;
         return ChatroomPage(
           chatroomId: extra['chatroom_id'] as int,
-          chatTitle: extra['user_name'] as String,
+          chatTitle: extra['username'] as String,
         );
       },
     ),
@@ -619,7 +619,7 @@ final GoRouter appRouter = GoRouter(
         final extras = st.extra as Map<String, dynamic>;
         return ScheduleAmountPage(
           userId: extras['user_id'] as int,
-          userName: extras['user_name'] as String,
+          userName: extras['username'] as String,
           phoneNo: extras['phone_no'] as String,
           startDate: DateTime.parse(extras['start_date'] as String),
           frequency: extras['frequency'] as String,
@@ -636,7 +636,7 @@ final GoRouter appRouter = GoRouter(
         final extras = st.extra as Map<String, dynamic>;
         return ScheduleConfirmPage(
           userId: extras['user_id'] as int,
-          userName: extras['user_name'] as String,
+          userName: extras['username'] as String,
           phoneNo: extras['phone_no'] as String,
           startDate: extras['start_date'] as DateTime, 
           frequency: extras['frequency'] as String,
@@ -652,7 +652,7 @@ final GoRouter appRouter = GoRouter(
         final extras = st.extra as Map<String, dynamic>;
         return ScheduleSuccessPage(
           userId: extras['user_id'] as int,
-          userName: extras['user_name'] as String,
+          userName: extras['username'] as String,
           phoneNo: extras['phone_no'] as String,
           startDate: extras['start_date'] as DateTime,
           frequency: extras['frequency'] as String,

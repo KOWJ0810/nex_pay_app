@@ -266,7 +266,7 @@ class _AppLockGateState extends State<AppLockGate> with WidgetsBindingObserver {
       token: token,
       userId: userId,
       email: user['email'] ?? '',
-      name: user['user_name'] ?? '',
+      name: user['username'] ?? '',
       status: user['user_status'] ?? '',
     );
   }
@@ -276,7 +276,7 @@ class _AppLockGateState extends State<AppLockGate> with WidgetsBindingObserver {
     await _secure.write(key: 'user_id', value: '${data.userId}');
     await _secure.write(key: 'user_phone', value: phone);
     await _secure.write(key: 'user_email', value: data.email);
-    await _secure.write(key: 'user_name', value: data.name);
+    await _secure.write(key: 'username', value: data.name);
     await _secure.write(key: 'user_status', value: data.status);
   }
 

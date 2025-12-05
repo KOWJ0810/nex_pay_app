@@ -36,7 +36,7 @@ class RegistrationData {
     required String selfieUrl,
   }) {
     return {
-      "user_name": fullName,
+      "username": fullName,
       "ic_num": icNum,
       "phoneNum": phoneNum,
       "ic_image_front": icFrontUrl,

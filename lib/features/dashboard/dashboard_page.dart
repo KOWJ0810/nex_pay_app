@@ -97,7 +97,7 @@ class _DashboardPageState extends State<DashboardPage> {
       final data = json.decode(res.body);
       if (data['success'] == true && data['user'] != null) {
         setState(() {
-          userName = data['user']['user_name'];
+          userName = data['user']['username'];
           balance = (data['user']['wallet_balance'] ?? 0.0).toDouble();
         });
       } else {

@@ -141,7 +141,7 @@ class GroupPaymentContribution {
           ? _toInt(json['transactionId'])
           : null,
       userName: (json['userName'] ??
-                 json['user_name'] ??
+                 json['username'] ??
                  json['displayName'] ??
                  json['display_name'])
             ?.toString(),    
@@ -622,7 +622,7 @@ Future<void> _loadGroupMemberNames() async {
     for (final item in data) {
       if (item is! Map<String, dynamic>) continue;
       final id = PaymentRequestSummary._toInt(item['userId'] ?? item['user_id']);
-      final name = (item['userName'] ?? item['user_name'] ?? '').toString();
+      final name = (item['userName'] ?? item['username'] ?? '').toString();
       if (id != 0 && name.isNotEmpty) {
         names[id] = name;
       }
@@ -981,8 +981,12 @@ Future<void> _loadGroupMemberNames() async {
                           style: TextStyle(fontSize: 12),
                         ),
                         onTap: () {
-                          Navigator.of(ctx).pop();
-                          _openSchedulePayment();
+                          context.pushNamed(
+                            RouteNames.allSchedule,
+                            extra: {
+                              'user_id': _otherUserId ,    // <-- replace with your actual userId
+                            },
+                          );
                         },
                       ),
                       const Divider(height: 0),
