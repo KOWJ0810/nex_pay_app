@@ -11,7 +11,7 @@ class ApiConfig {
     //static const String baseUrl = "http://192.168.0.9:8080/api";
 
     //lkw wifi
-    // static const String baseUrl = "http://192.168.1.6:8080/api";
+    static const String baseUrl = "http://192.168.1.6:8080/api";
 
     //lkw hotspot
     //static const String baseUrl = "http://172.20.10.6:8080/api";
@@ -20,5 +20,5 @@ class ApiConfig {
     //static const String baseUrl = "https://nexpayapi.kentech.my/api";
 
     //Base URL for the desktop localhost
-    static const String baseUrl = "http://192.168.100.166:8080/api";
+    // static const String baseUrl = "http://192.168.100.166:8080/api";
 }
