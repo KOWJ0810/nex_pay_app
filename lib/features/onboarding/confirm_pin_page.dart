@@ -115,7 +115,7 @@ class _ConfirmPinPageState extends State<ConfirmPinPage>
     //   "success": true,
     //   "message": "...",
     //   "token": "...",
-    //   "user": { "user_id", "user_name", "email", "phoneNum", "user_status" }
+    //   "user": { "user_id", "username", "email", "phoneNum", "user_status" }
     // }
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('is_logged_in', true);
@@ -126,7 +126,7 @@ class _ConfirmPinPageState extends State<ConfirmPinPage>
 
     await _secure.write(key: 'token', value: token);
     await _secure.write(key: 'user_id', value: '${user['user_id'] ?? ''}');
-    await _secure.write(key: 'user_name', value: (user['user_name'] ?? ''));
+    await _secure.write(key: 'username', value: (user['username'] ?? ''));
     await _secure.write(key: 'email', value: (user['email'] ?? ''));
     await _secure.write(key: 'phoneNum', value: (user['phoneNum'] ?? ''));
     await _secure.write(key: 'user_status', value: (user['user_status'] ?? ''));
@@ -267,7 +267,7 @@ class _ConfirmPinPageState extends State<ConfirmPinPage>
       final ic = RegistrationData.icNum.isEmpty ? 'user' : RegistrationData.icNum;
 
       final body = jsonEncode({
-        "user_name": RegistrationData.fullName.isEmpty
+        "username": RegistrationData.fullName.isEmpty
             ? "User"
             : RegistrationData.fullName,
         "ic_num": RegistrationData.icNum,

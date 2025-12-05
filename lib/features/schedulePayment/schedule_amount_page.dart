@@ -45,7 +45,7 @@ class _ScheduleAmountPageState extends State<ScheduleAmountPage> {
       context.pushNamed(RouteNames.scheduleConfirm, 
       extra: {
         'user_id': widget.userId,
-        'user_name': widget.userName,
+        'username': widget.userName,
         'phone_no': widget.phoneNo,
         'amount': amount,
         'start_date': widget.startDate,

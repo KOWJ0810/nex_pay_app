@@ -120,7 +120,7 @@ class _ScheduleDatePageState extends State<ScheduleDatePage> {
       'schedule-amount',
       extra: {
         'user_id': widget.userId,
-        'user_name': userData!['user_name'],
+        'username': userData!['username'],
         'phone_no': userData!['phoneNum'],
         'start_date': formattedDate,
         'frequency': _selectedFrequency,
@@ -205,7 +205,7 @@ class _ScheduleDatePageState extends State<ScheduleDatePage> {
                           backgroundColor: accentColor.withOpacity(0.9),
                           radius: 26,
                           child: Text(
-                            userData!["user_name"][0].toUpperCase(),
+                            userData!["username"][0].toUpperCase(),
                             style: const TextStyle(
                               color: Colors.black,
                               fontWeight: FontWeight.bold,
@@ -218,7 +218,7 @@ class _ScheduleDatePageState extends State<ScheduleDatePage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              userData!["user_name"],
+                              userData!["username"],
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,

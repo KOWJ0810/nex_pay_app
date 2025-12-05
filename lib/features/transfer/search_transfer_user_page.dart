@@ -43,7 +43,7 @@ class _SearchTransferUserPageState extends State<SearchTransferUserPage> {
           RouteNames.p2pEnterAmountPage,
           extra: {
             'userId': user['user_id'],
-            'userName': user['user_name'],
+            'userName': user['username'],
             'phoneNum': phoneNum,
           },
         );

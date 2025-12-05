@@ -112,14 +112,19 @@ class _DeviceTakeoverPageState extends State<DeviceTakeoverPage>
     final prefs = await SharedPreferences.getInstance();
 
     // 1) Read from secure storage first; fall back to prefs for older logins
-    final token = await _secure.read(key: 'token') ?? prefs.getString('auth_token') ?? '';
-    final userIdStr = await _secure.read(key: 'user_id');
-    final userIdFromPrefs = prefs.getInt('user_id') ?? widget.userId;
-    final parsedUserId = int.tryParse(userIdStr ?? '') ?? userIdFromPrefs;
+    final token = await _secure.read(key: 'token') 
+    ?? prefs.getString('auth_token') 
+    ?? '';
+
+    final userIdStrSecure = await _secure.read(key: 'user_id');
+    final userIdStrPrefs  = prefs.getString('user_id');
+
+    final parsedUserId = int.tryParse(userIdStrSecure ?? userIdStrPrefs ?? '') 
+        ?? widget.userId;
 
     _sessionPhone  = await _secure.read(key: 'phoneNum') ?? prefs.getString('user_phone');
     _sessionEmail  = await _secure.read(key: 'email') ?? prefs.getString('user_email');
-    _sessionName   = await _secure.read(key: 'user_name') ?? prefs.getString('user_name');
+    _sessionName   = await _secure.read(key: 'username') ?? prefs.getString('username');
     _sessionStatus = await _secure.read(key: 'user_status') ?? prefs.getString('user_status');
 
     // 2) Ensure / reuse deviceId (we keep this in SharedPreferences by design)

@@ -158,7 +158,7 @@ class _MerchantAddStaffPageState extends State<MerchantAddStaffPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              userData!['user_name'] ?? 'Unknown',
+                              userData!['username'] ?? 'Unknown',
                               style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w700,

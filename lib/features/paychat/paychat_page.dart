@@ -129,7 +129,7 @@ class PaychatUserPreview {
       userId: id,
       phone: (json['phoneNum'] ?? json['phone'] ?? '').toString(),
       name: (json['userName'] ??
-              json['user_name'] ??
+              json['username'] ??
               json['name'] ??
               '')
           .toString(),
@@ -278,7 +278,7 @@ class _PayChatPageState extends State<PayChatPage> {
         RouteNames.chatroom,
         extra: {
           'user_id': null,
-          'user_name': createdRoom.displayName,
+          'username': createdRoom.displayName,
           'chatroom_id': createdRoom.chatroomId,
         },
       );
@@ -531,7 +531,7 @@ class _PayChatPageState extends State<PayChatPage> {
                                           RouteNames.chatroom,
                                           extra: {
                                             'user_id': null,
-                                            'user_name': chat.displayName,
+                                            'username': chat.displayName,
                                             'chatroom_id': chat.chatroomId,
                                           },
                                         );
@@ -956,7 +956,7 @@ class _NewChatSheetState extends State<_NewChatSheet> {
         RouteNames.chatroom,
         extra: {
           'user_id': null,
-          'user_name': chatTitle,
+          'username': chatTitle,
           'chatroom_id': room.chatroomId,
         },
       );

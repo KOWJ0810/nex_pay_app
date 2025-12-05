@@ -46,7 +46,7 @@ class _AccountPageState extends State<AccountPage> {
   }
 
   Future<void> _loadSecureData() async {
-    final name = await _secureStorage.read(key: 'user_name');
+    final name = await _secureStorage.read(key: 'username');
     final ph = await _secureStorage.read(key: 'user_phone');
     final em = await _secureStorage.read(key: 'user_email');
     final id = await _secureStorage.read(key: 'user_id');

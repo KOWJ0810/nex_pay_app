@@ -183,7 +183,7 @@ class _AddRelationshipPageState extends State<AddRelationshipPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                userData!['user_name'] ?? 'Unknown',
+                                userData!['username'] ?? 'Unknown',
                                 style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w700,
@@ -381,7 +381,7 @@ class _AddRelationshipPageState extends State<AddRelationshipPage> {
               'firstCode': jsonRes['firstCode'],
               'phone': _phoneController.text,
               'userId': userData!['user_id'],
-              'userName': userData!['user_name'],
+              'userName': userData!['username'],
             },
           );
         } else {
@@ -393,7 +393,7 @@ class _AddRelationshipPageState extends State<AddRelationshipPage> {
               'status': jsonRes['status'],
               'phone': _phoneController.text,
               'userId': userData!['user_id'],
-              'userName': userData!['user_name'],
+              'userName': userData!['username'],
             },
           );
         }

@@ -54,7 +54,7 @@ class ScheduleConfirmPage extends StatelessWidget {
             // Go to schedule success page with extras
             context.goNamed(RouteNames.scheduleSuccess, extra: {
               'user_id': userId,
-              'user_name': userName,
+              'username': userName,
               'phone_no': phoneNo,
               'start_date': startDate,
               'frequency': frequency,
