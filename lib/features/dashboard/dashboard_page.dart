@@ -37,13 +37,16 @@ class _DashboardPageState extends State<DashboardPage> {
     _loadSecureData();
     _loadRecentTransactions();
   }
+
   Future<void> _loadRecentTransactions() async {
     try {
       final token = await _secureStorage.read(key: 'token');
       if (token == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Authorization token not found. Please sign in again.')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Authorization token not found. Please sign in again.')),
+          );
+        }
         return;
       }
 
@@ -56,66 +59,85 @@ class _DashboardPageState extends State<DashboardPage> {
         final data = json.decode(response.body);
         if (data['success'] == true) {
           final items = List<Map<String, dynamic>>.from(data['items']);
-          setState(() {
-            _transactions = items.take(5).toList();
-            _isLoadingTx = false;
-          });
+          if (mounted) {
+            setState(() {
+              _transactions = items.take(5).toList();
+              _isLoadingTx = false;
+            });
+          }
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(data['message'] ?? 'Failed to load transactions.')),
-          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(data['message'] ?? 'Failed to load transactions.')),
+            );
+          }
         }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Server error: ${response.statusCode}')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Server error: ${response.statusCode}')),
+          );
+        }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error loading transactions: $e')),
-      );
-    }
-  }
-  Future<void> _loadSecureData() async {
-  try {
-    final token = await _secureStorage.read(key: 'token');
-    final userId = await _secureStorage.read(key: 'user_id');
-
-    if (token == null || userId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Session expired. Please sign in again.')),
-      );
-      return;
-    }
-
-    final res = await http.get(
-      Uri.parse('${ApiConfig.baseUrl}/users/$userId'),
-      headers: {'Authorization': 'Bearer $token'},
-    );
-
-    if (res.statusCode == 200) {
-      final data = json.decode(res.body);
-      if (data['success'] == true && data['user'] != null) {
-        setState(() {
-          userName = data['user']['username'];
-          balance = (data['user']['wallet_balance'] ?? 0.0).toDouble();
-        });
-      } else {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(data['message'] ?? 'Failed to load user profile.')),
+          SnackBar(content: Text('Error loading transactions: $e')),
         );
       }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Server error: ${res.statusCode}')),
-      );
     }
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error loading user data: $e')),
-    );
   }
-}
+
+  Future<void> _loadSecureData() async {
+    try {
+      final token = await _secureStorage.read(key: 'token');
+      final userId = await _secureStorage.read(key: 'user_id');
+
+      if (token == null || userId == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Session expired. Please sign in again.')),
+          );
+        }
+        return;
+      }
+
+      final res = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}/users/$userId'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+        if (data['success'] == true && data['user'] != null) {
+          if (mounted) {
+            setState(() {
+              userName = data['user']['username'];
+              balance = (data['user']['wallet_balance'] ?? 0.0).toDouble();
+            });
+          }
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(data['message'] ?? 'Failed to load user profile.')),
+            );
+          }
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Server error: ${res.statusCode}')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading user data: $e')),
+        );
+      }
+    }
+  }
 
   Future<void> _loadPrefs() async {
     final prefs = await SharedPreferences.getInstance();
@@ -129,6 +151,8 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Future<void> _onRefresh() async {
+    _loadSecureData();
+    _loadRecentTransactions();
     await Future.delayed(const Duration(milliseconds: 600));
   }
 
@@ -173,7 +197,7 @@ class _DashboardPageState extends State<DashboardPage> {
                               const Text('NexPay',
                                   style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 20)),
                               const Spacer(),
-                              _glassIconButton(Icons.notifications_rounded, onTap: () {}),
+                              // Notification Icon Removed Here
                             ],
                           ),
                           const SizedBox(height: 16),
@@ -338,18 +362,7 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   // ── Small UI helpers ────────────────────────────────────────────────────────────
-  static Widget _glassIconButton(IconData icon, {required VoidCallback onTap}) {
-    return InkResponse(
-      onTap: onTap,
-      radius: 28,
-      child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(color: Colors.white.withOpacity(.14), shape: BoxShape.circle),
-        child: Icon(icon, color: Colors.white, size: 22),
-      ),
-    );
-  }
-
+  
   static Widget _pillButton({required String label, required VoidCallback onTap}) {
     return InkWell(
       borderRadius: BorderRadius.circular(999),
