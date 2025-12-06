@@ -177,7 +177,7 @@ class _AccountPageState extends State<AccountPage> {
                                   ],
                                 ),
                               ),
-  
+                              const SizedBox(width: 8),
                             ],
                           ),
                         ),
@@ -301,14 +301,9 @@ class _AccountPageState extends State<AccountPage> {
                       ),
                     ]),
 
-                    // Notifications Section Removed
-
-                    // Privacy Section Removed
-
                     const SizedBox(height: 16),
                     _SectionHeader('Support'),
                     _CardSection(children: [
-                      // Help Center Removed
                       _NavTile(
                           icon: Icons.bug_report_rounded,
                           title: 'Report a problem',
@@ -399,7 +394,6 @@ class _AccountPageState extends State<AccountPage> {
   }
 
   // ─────────── Helper methods ───────────
-  void _onEditProfile() => _toast('Edit profile (coming soon)');
   void _toast(String msg) {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(msg)));
@@ -414,7 +408,6 @@ class _AccountPageState extends State<AccountPage> {
     }
 
     try {
-      _toast('Checking merchant account...');
       final res = await http.get(
         Uri.parse('${ApiConfig.baseUrl}/merchants/user'),
         headers: {
@@ -430,19 +423,21 @@ class _AccountPageState extends State<AccountPage> {
           final status = merchant['status'] ?? '';
 
           if (status == 'PENDING_VERIFICATION') {
-            context.goNamed(RouteNames.merchantPendingApprove);
+            if(mounted) context.goNamed(RouteNames.merchantPendingApprove);
           } else if (status == 'ACTIVE') {
-            context.goNamed(RouteNames.merchantDashboard);
+            if(mounted) context.goNamed(RouteNames.merchantDashboard);
+          } else if (status == 'SUSPENDED') {
+            if(mounted) _showSuspendedDialog(); // NEW CHECK
           } else {
-            context.goNamed(RouteNames.merchantRegisterLanding);
+            if(mounted) context.goNamed(RouteNames.merchantRegisterLanding);
           }
         } else {
-          context.goNamed(RouteNames.merchantRegisterLanding);
+          if(mounted) context.goNamed(RouteNames.merchantRegisterLanding);
         }
       } else if (res.statusCode == 404) {
         final jsonRes = jsonDecode(res.body);
         if (jsonRes['success'] == false) {
-          context.goNamed(RouteNames.merchantRegisterLanding);
+          if(mounted) context.goNamed(RouteNames.merchantRegisterLanding);
           return;
         }
       } else {
@@ -451,6 +446,44 @@ class _AccountPageState extends State<AccountPage> {
     } catch (e) {
       _toast('Error: $e');
     }
+  }
+
+  void _showSuspendedDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: const [
+            Icon(Icons.warning_amber_rounded, color: Colors.red, size: 28),
+            SizedBox(width: 8),
+            Text("Account Suspended", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: const Text(
+          "Your merchant account has been suspended due to policy violations or suspicious activity. \n\nPlease contact support for assistance.",
+          style: TextStyle(fontSize: 15),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Close", style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryColor, 
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () {
+              Navigator.pop(context);
+              context.pushNamed(RouteNames.reportList); // Redirect to support
+            },
+            child: const Text("Contact Support"),
+          ),
+        ],
+      ),
+    );
   }
 }
 
