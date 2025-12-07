@@ -194,12 +194,17 @@ class _AllSchedulePageState extends State<AllSchedulePage> {
                     },
                   ),
                   const SizedBox(width: 10),
-                  Text(
-                    "Schedules with $receiverName",
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 20,
+                  // FIX: Wrapped text in Expanded to prevent overflow
+                  Expanded(
+                    child: Text(
+                      "Schedules with $receiverName",
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
                   ),
                 ],
