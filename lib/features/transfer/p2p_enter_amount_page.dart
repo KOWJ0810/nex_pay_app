@@ -103,8 +103,14 @@ class _P2PEnterAmountPageState extends State<P2PEnterAmountPage> {
             "transactionId": data["transactionId"],
             "transactionRefNum": data["transactionRefNum"],
             "amount": data["amount"],
+            "fromUserId": data["fromUserId"],
+            "toUserId": data["toUserId"],
+            "fromBalanceAfter": data["fromBalanceAfter"],
+            "toBalanceAfter": data["toBalanceAfter"],
+            "at": data["at"],
+            // Extra info for display
             "receiverName": widget.userName,
-            // Add other fields as needed by your success page
+            "receiverPhone": widget.phoneNum,
           },
         );
       } else {
