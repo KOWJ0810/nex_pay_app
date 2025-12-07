@@ -10,7 +10,7 @@ import 'dart:convert';
 import '../../core/constants/api_config.dart';
 
 class AllSchedulePage extends StatefulWidget {
-  final int userId; // Receiver’s ID passed from chatroom
+  final int userId; // chatroom receiver id
 
   const AllSchedulePage({super.key, required this.userId});
 
@@ -40,7 +40,6 @@ class _AllSchedulePageState extends State<AllSchedulePage> {
         throw Exception('Missing auth token');
       }
 
-      // Normalize Authorization header
       String authHeader =
           token.toLowerCase().startsWith('bearer ') ? token : 'Bearer $token';
 
@@ -68,7 +67,6 @@ class _AllSchedulePageState extends State<AllSchedulePage> {
 
       final List<dynamic> data = jsonBody['data'] ?? [];
 
-      // Filter schedules where payee.userId == receiver’s ID from chatroom and status == 'ACTIVE'
       final filtered = data
           .where((item) =>
               item['payee'] is Map<String, dynamic> &&
@@ -194,7 +192,6 @@ class _AllSchedulePageState extends State<AllSchedulePage> {
                     },
                   ),
                   const SizedBox(width: 10),
-                  // FIX: Wrapped text in Expanded to prevent overflow
                   Expanded(
                     child: Text(
                       "Schedules with $receiverName",

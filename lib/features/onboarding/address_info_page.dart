@@ -65,7 +65,7 @@ class _AddressInfoPageState extends State<AddressInfoPage> {
                         // Capsule progress
                         const _CapsuleProgress(
                           steps: ["Start", "Verify", "Secure"],
-                          currentIndex: 2, // same flow level
+                          currentIndex: 2, 
                         ),
                         const SizedBox(height: 24),
 
@@ -203,7 +203,7 @@ class _AddressInfoPageState extends State<AddressInfoPage> {
   }
 }
 
-/// Reusable filled rounded field
+// Reusable filled rounded field
 class _FilledField extends StatelessWidget {
   final TextEditingController controller;
   final String hintText;
@@ -248,7 +248,7 @@ class _FilledField extends StatelessWidget {
   }
 }
 
-/// Field label
+// Field label
 class _FieldLabel extends StatelessWidget {
   final String text;
   const _FieldLabel(this.text);
@@ -266,7 +266,7 @@ class _FieldLabel extends StatelessWidget {
   }
 }
 
-/// Glass container
+// Glass container
 class _GlassCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
@@ -294,7 +294,7 @@ class _GlassCard extends StatelessWidget {
   }
 }
 
-/// Progress capsule (same style as IC verification)
+/// Progress capsule
 class _CapsuleProgress extends StatelessWidget {
   final List<String> steps;
   final int currentIndex;

@@ -8,7 +8,7 @@ import '../../core/constants/colors.dart';
 import '../../models/registration_data.dart';
 import '../../router.dart';
 
-/// Uppercase input (kept from your version)
+// Uppercase input formatter
 class UpperCaseTextFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
@@ -22,7 +22,7 @@ class UpperCaseTextFormatter extends TextInputFormatter {
   }
 }
 
-/// Auto-format IC number as XXXXXX-XX-XXXX while typing
+// Auto-format IC number while typing
 class ICNumberFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
@@ -43,7 +43,6 @@ class ICNumberFormatter extends TextInputFormatter {
     }
     final formatted = buf.toString();
 
-    // Keep caret at end (simple + reliable for OTP-like entry)
     return TextEditingValue(
       text: formatted,
       selection: TextSelection.collapsed(offset: formatted.length),
@@ -77,12 +76,12 @@ class _ConfirmICInfoPageState extends State<ConfirmICInfoPage> {
   void initState() {
     super.initState();
     nameController = TextEditingController(text: widget.fullName);
-    // Normalize incoming IC to dashed format once at init
     icController = TextEditingController(
       text: _formatInitialIC(widget.icNumber),
     );
   }
 
+  // Make IC to Dashed Format
   String _formatInitialIC(String raw) {
     var digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
     if (digits.length > 12) digits = digits.substring(0, 12);
@@ -103,7 +102,6 @@ class _ConfirmICInfoPageState extends State<ConfirmICInfoPage> {
 
   void _onNext() {
     RegistrationData.fullName = nameController.text.trim();
-    // Store as digits-only (clean) OR keep dashed—choose one. Here we keep dashed for readability:
     RegistrationData.icNum = icController.text.trim();
     RegistrationData.icFrontImage = widget.icImage;
     RegistrationData.icBackImage = widget.icBackImage;
@@ -132,10 +130,10 @@ class _ConfirmICInfoPageState extends State<ConfirmICInfoPage> {
                     children: [
                       const SizedBox(height: 14),
 
-                      // Capsule progress — still "Step 2" in overall flow (no explicit Step label)
+                      // Capsule progress Step 2
                       const _CapsuleProgress(
                         steps: ["Start", "Verify", "Secure"],
-                        currentIndex: 2, // still at step 2
+                        currentIndex: 2, 
                       ),
 
                       const SizedBox(height: 24),
@@ -230,7 +228,7 @@ class _ConfirmICInfoPageState extends State<ConfirmICInfoPage> {
 
                       const SizedBox(height: 20),
 
-                      // Continue CTA
+                     
                       Container(
                         decoration: BoxDecoration(
                           boxShadow: [
@@ -278,7 +276,7 @@ class _ConfirmICInfoPageState extends State<ConfirmICInfoPage> {
   }
 }
 
-/// Label style above inputs
+// Label style above inputs
 class _FieldLabel extends StatelessWidget {
   final String text;
   const _FieldLabel(this.text);
@@ -296,7 +294,7 @@ class _FieldLabel extends StatelessWidget {
   }
 }
 
-/// Filled rounded input used across onboarding
+// Filled rounded input used across onboarding
 class _FilledField extends StatelessWidget {
   final TextEditingController controller;
   final String hintText;
@@ -381,7 +379,7 @@ class _ImagePreview extends StatelessWidget {
   }
 }
 
-/// Capsule Step Progress Bar (no explicit "Step X" label)
+// Progress Bar
 class _CapsuleProgress extends StatelessWidget {
   final List<String> steps;
   final int currentIndex;
@@ -399,8 +397,8 @@ class _CapsuleProgress extends StatelessWidget {
           borderRadius: BorderRadius.circular(999),
           child: Row(
             children: List.generate(steps.length, (i) {
-              final isDone = i < currentIndex - 1;     // completed before current step
-              final isCurrent = i == currentIndex - 1; // current step (1-indexed visual)
+              final isDone = i < currentIndex - 1;     
+              final isCurrent = i == currentIndex - 1; 
               return Expanded(
                 child: Container(
                   height: 10,
@@ -486,7 +484,7 @@ class _GlassCard extends StatelessWidget {
   }
 }
 
-/// Glowing ID logo (for title area)
+/// Glowing ID logo
 class _IdCardLogo extends StatelessWidget {
   final double size;
   const _IdCardLogo({required this.size});
@@ -496,7 +494,6 @@ class _IdCardLogo extends StatelessWidget {
     return Stack(
       alignment: Alignment.center,
       children: [
-        // Glow
         Container(
           width: size,
           height: size,
@@ -511,7 +508,6 @@ class _IdCardLogo extends StatelessWidget {
             ],
           ),
         ),
-        // Circle w/ border
         Container(
           width: size,
           height: size,

@@ -104,7 +104,6 @@ class _ReportListPageState extends State<ReportListPage> {
       ),
       body: Column(
         children: [
-          // ─── Header Summary ───
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
@@ -115,7 +114,6 @@ class _ReportListPageState extends State<ReportListPage> {
             ),
           ),
 
-          // ─── List Content ───
           Expanded(
             child: RefreshIndicator(
               onRefresh: _fetchReports,
@@ -136,7 +134,6 @@ class _ReportListPageState extends State<ReportListPage> {
             ),
           ),
 
-          // ─── Bottom Button ───
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -155,9 +152,8 @@ class _ReportListPageState extends State<ReportListPage> {
                 height: 54,
                 child: ElevatedButton.icon(
                   onPressed: () {
-                    // Navigate to Create Report Page
                     context.pushNamed(RouteNames.submitReport).then((val) {
-                      if (val == true) _fetchReports(); // Refresh on return
+                      if (val == true) _fetchReports(); 
                     });
                   },
                   style: ElevatedButton.styleFrom(
@@ -185,7 +181,7 @@ class _ReportListPageState extends State<ReportListPage> {
     );
   }
 
-  // ─── Card Builder ───
+  // Card Builder 
   Widget _buildReportCard(Map<String, dynamic> item) {
     final status = item['status'] ?? 'PENDING';
     final title = item['title'] ?? 'No Title';
@@ -196,7 +192,7 @@ class _ReportListPageState extends State<ReportListPage> {
     final date = DateTime.tryParse(dateStr) ?? DateTime.now();
     final category = _formatCategory(categoryRaw);
 
-    // Status Styling
+    // Status
     Color statusColor;
     Color statusBg;
     IconData statusIcon;
@@ -240,7 +236,7 @@ class _ReportListPageState extends State<ReportListPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Row 1: ID & Status
+          // ID & Status
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -282,7 +278,7 @@ class _ReportListPageState extends State<ReportListPage> {
           
           const SizedBox(height: 12),
 
-          // Row 2: Title
+          // Title
           Text(
             title,
             style: const TextStyle(
@@ -294,7 +290,7 @@ class _ReportListPageState extends State<ReportListPage> {
           
           const SizedBox(height: 6),
 
-          // Row 3: Category
+          // Category
           Row(
             children: [
               Icon(Icons.label_outline_rounded, size: 14, color: Colors.grey[500]),
@@ -311,7 +307,7 @@ class _ReportListPageState extends State<ReportListPage> {
             child: Divider(height: 1),
           ),
 
-          // Row 4: Date
+          // Date
           Row(
             children: [
               Icon(Icons.calendar_today_rounded, size: 14, color: Colors.grey[400]),
@@ -327,7 +323,6 @@ class _ReportListPageState extends State<ReportListPage> {
     );
   }
 
-  // Helper to format "DUPLICATE_CHARGE" -> "Duplicate Charge"
   String _formatCategory(String raw) {
     if (raw.isEmpty) return 'General';
     return raw.split('_')

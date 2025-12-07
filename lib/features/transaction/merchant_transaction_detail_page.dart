@@ -142,7 +142,7 @@ class _MerchantTransactionDetailPageState
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // -------------------- HEADER --------------------
+                        // Header
                         Row(
                           children: [
                             GestureDetector(
@@ -164,7 +164,7 @@ class _MerchantTransactionDetailPageState
 
                         const SizedBox(height: 25),
 
-                        // -------------------- TRANSACTION CARD --------------------
+                        // Transaction Card
                         Container(
                           width: double.infinity,
                           padding: const EdgeInsets.all(18),
@@ -213,7 +213,7 @@ class _MerchantTransactionDetailPageState
 
                         const SizedBox(height: 20),
 
-                        // -------------------- DETAILS --------------------
+                        // Show Details
                         _detailTile("Status", (transaction?["status"] ?? "").toString()),
                         _detailTile("Category", (transaction?["category"] ?? "").toString()),
                         _detailTile("Payment Type", (transaction?["paymentType"] ?? "").toString()),

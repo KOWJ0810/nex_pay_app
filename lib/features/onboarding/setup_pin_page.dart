@@ -116,7 +116,7 @@ class _SetupPinPageState extends State<SetupPinPage> with TickerProviderStateMix
             bottom: false,
             child: Column(
               children: [
-                // ── TOP CONTENT ───────────────────────────────────────────────
+                // Upper Content
                 Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -154,7 +154,7 @@ class _SetupPinPageState extends State<SetupPinPage> with TickerProviderStateMix
                         ),
                         const SizedBox(height: 22),
 
-                        // PIN bubbles + hint
+                        // PIN bubbles 
                         _GlassCard(
                           padding: const EdgeInsets.fromLTRB(18, 18, 18, 12),
                           child: Column(
@@ -173,7 +173,6 @@ class _SetupPinPageState extends State<SetupPinPage> with TickerProviderStateMix
                               ),
                               const SizedBox(height: 12),
 
-                              // NEW: non-truncating hint bar that wraps
                               _HintBar(
                                 text: _pinHint(),
                                 color: _pinHintColor(),
@@ -190,7 +189,7 @@ class _SetupPinPageState extends State<SetupPinPage> with TickerProviderStateMix
                   ),
                 ),
 
-                // ── BOTTOM KEYPAD ─────────────────────────────────────────────
+                // Custom Keypad
                 CustomPinKeyboard(
                   onKeyTap: _onKeyTap,
                   onBackspace: _onBackspace,
@@ -208,7 +207,7 @@ class _SetupPinPageState extends State<SetupPinPage> with TickerProviderStateMix
   }
 }
 
-/// Wrap-based hint/action row that never truncates the hint text.
+/// Wrap-based hint/action row
 class _HintBar extends StatelessWidget {
   final String text;
   final Color color;
@@ -275,11 +274,11 @@ class _HintBar extends StatelessWidget {
   }
 }
 
-// ── UI helpers ───────────────────────────────────────────────────────────────
+// UI Elements
 
 class _PinBubble extends StatelessWidget {
   final bool filled;
-  final String? showChar; // if not null, show this instead of dot
+  final String? showChar;
 
   const _PinBubble({required this.filled, this.showChar});
 
@@ -346,7 +345,7 @@ class _GlassCard extends StatelessWidget {
 
 class _CapsuleProgress extends StatelessWidget {
   final List<String> steps;
-  final int currentIndex; // 1-indexed visual
+  final int currentIndex; 
   const _CapsuleProgress({required this.steps, required this.currentIndex});
 
   @override

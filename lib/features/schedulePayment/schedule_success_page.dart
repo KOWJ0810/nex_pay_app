@@ -63,7 +63,7 @@ class ScheduleSuccessPage extends StatelessWidget {
         child: Column(
           children: [
             const SizedBox(height: 40),
-            // ✅ Success Icon
+            // Success Icon
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -88,7 +88,7 @@ class ScheduleSuccessPage extends StatelessWidget {
             ),
             const SizedBox(height: 30),
 
-            // 🔹 Details Card
+            // Details Card
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -121,7 +121,7 @@ class ScheduleSuccessPage extends StatelessWidget {
 
             const Spacer(),
 
-            // 🔹 Back Button
+            // Back Button
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(

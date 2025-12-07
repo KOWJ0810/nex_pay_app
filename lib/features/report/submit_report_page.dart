@@ -77,10 +77,9 @@ class _SubmitReportPageState extends State<SubmitReportPage> {
       final jsonRes = jsonDecode(res.body);
 
       if (res.statusCode == 200 && jsonRes['success'] == true) {
-        final data = jsonRes['data']; // Get the created report data
+        final data = jsonRes['data']; 
         
         if (mounted) {
-          // Redirect to Success Page with the report data
           context.goNamed(
             RouteNames.reportSuccess,
             extra: data, 
@@ -134,7 +133,7 @@ class _SubmitReportPageState extends State<SubmitReportPage> {
             hasScrollBody: false,
             child: Column(
               children: [
-                // ─── Top Section: Hero Text ───
+                // Top Section
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 30),
@@ -165,7 +164,7 @@ class _SubmitReportPageState extends State<SubmitReportPage> {
 
                 const Spacer(),
 
-                // ─── Bottom Section: Form Sheet ───
+                // Bottom Section
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(24),
@@ -178,7 +177,7 @@ class _SubmitReportPageState extends State<SubmitReportPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // 1. Category Dropdown
+                        // Category Dropdown
                         const Text("Issue Category", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: primaryColor)),
                         const SizedBox(height: 8),
                         Container(
@@ -207,7 +206,7 @@ class _SubmitReportPageState extends State<SubmitReportPage> {
 
                         const SizedBox(height: 20),
 
-                        // 2. Title Input
+                        // Title Input
                         _buildLabel("Subject Title"),
                         TextFormField(
                           controller: _titleController,
@@ -218,7 +217,7 @@ class _SubmitReportPageState extends State<SubmitReportPage> {
 
                         const SizedBox(height: 20),
 
-                        // 3. Description Input
+                        // Description Input
                         _buildLabel("Description"),
                         TextFormField(
                           controller: _descController,
@@ -230,7 +229,7 @@ class _SubmitReportPageState extends State<SubmitReportPage> {
 
                         const SizedBox(height: 20),
 
-                        // 4. Transaction Ref (Optional)
+                        // Transaction Ref
                         _buildLabel("Transaction ID (Optional)"),
                         TextFormField(
                           controller: _txnRefController,
@@ -273,7 +272,6 @@ class _SubmitReportPageState extends State<SubmitReportPage> {
     );
   }
 
-  // ─── Helpers ───
 
   Widget _buildLabel(String text) {
     return Padding(
