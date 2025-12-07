@@ -273,7 +273,7 @@ class _ConfirmPinPageState extends State<ConfirmPinPage>
         "ic_num": RegistrationData.icNum,
         "phoneNum": RegistrationData.phoneNum,
 
-        "profile_image": "profile_$ic.png",
+        "profile_image": selfieUrl,
 
         "ic_image_front": icFrontUrl,
         "ic_image_back": icBackUrl,

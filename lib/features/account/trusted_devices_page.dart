@@ -60,7 +60,7 @@ class _TrustedDevicesPageState extends State<TrustedDevicesPage> {
     final storedUserId =
         int.tryParse(userIdStr ?? '') ?? (prefs.getInt('user_id') ?? 0);
     final storedEmail =
-        await _secure.read(key: 'email') ?? (prefs.getString('user_email') ?? '');
+        await _secure.read(key: 'user_email') ?? (prefs.getString('user_email') ?? '');
     final storedDeviceId = prefs.getString('device_id') ?? '';
 
     // detect human-ish device label
