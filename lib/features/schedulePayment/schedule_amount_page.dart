@@ -41,7 +41,6 @@ class _ScheduleAmountPageState extends State<ScheduleAmountPage> {
         ),
       );
 
-      // Example of navigation to a confirmation or success page
       context.pushNamed(RouteNames.scheduleConfirm, 
       extra: {
         'user_id': widget.userId,
@@ -109,7 +108,7 @@ class _ScheduleAmountPageState extends State<ScheduleAmountPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 🔹 Recipient Info
+            // Recipient Info
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -188,7 +187,7 @@ class _ScheduleAmountPageState extends State<ScheduleAmountPage> {
 
             const SizedBox(height: 40),
 
-            // 🔹 Enter Amount
+            // Enter Amount
             const Text(
               "Enter Amount (RM)",
               style: TextStyle(
@@ -227,7 +226,7 @@ class _ScheduleAmountPageState extends State<ScheduleAmountPage> {
 
             const Spacer(),
 
-            // 🔹 Confirm Button
+            // Confirm Button
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(

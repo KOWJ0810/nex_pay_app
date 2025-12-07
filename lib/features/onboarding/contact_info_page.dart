@@ -42,7 +42,7 @@ class _ContactInfoPageState extends State<ContactInfoPage> {
     });
 
     try {
-      // 1) Validate format
+      // Validate format
       final validationResponse = await http.post(
         Uri.parse('${ApiConfig.baseUrl}/users/validateContact'),
         headers: {'Content-Type': 'application/json'},
@@ -74,7 +74,7 @@ class _ContactInfoPageState extends State<ContactInfoPage> {
         return;
       }
 
-      // 2) Check phone duplication
+      // Check phone duplication
       final phoneCheckUri = Uri.parse('${ApiConfig.baseUrl}/users/checkPhone')
           .replace(queryParameters: {'phoneNum': phone});
 
@@ -111,7 +111,7 @@ class _ContactInfoPageState extends State<ContactInfoPage> {
         return;
       }
 
-      // 3) Send OTP
+      // Send OTP
       final otpResponse = await http.post(
         Uri.parse("${ApiConfig.baseUrl}/otp/send"),
         headers: {"Content-Type": "application/json"},
@@ -160,8 +160,6 @@ class _ContactInfoPageState extends State<ContactInfoPage> {
                   child: Column(
                     children: [
                       const SizedBox(height: 14),
-
-                      // Capsule Progress (3 steps)
                       const _CapsuleProgress(
                         steps: ["Start", "Verify", "Secure"],
                         currentIndex: 0,
@@ -229,7 +227,7 @@ class _ContactInfoPageState extends State<ContactInfoPage> {
 
                       const SizedBox(height: 24),
 
-                      // CTA
+                      
                       Container(
                         decoration: BoxDecoration(
                           boxShadow: [

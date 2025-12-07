@@ -51,7 +51,6 @@ class ScheduleConfirmPage extends StatelessWidget {
       );
       final Map<String, dynamic> resp = jsonDecode(response.body);
       if (resp['success'] == true) {
-            // Go to schedule success page with extras
             context.goNamed(RouteNames.scheduleSuccess, extra: {
               'user_id': userId,
               'username': userName,
@@ -132,7 +131,6 @@ class ScheduleConfirmPage extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            // 🔹 Confirmation Card
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -200,7 +198,7 @@ class ScheduleConfirmPage extends StatelessWidget {
 
             const Spacer(),
 
-            // 🔹 Confirm Button
+            // Confirm Button
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(

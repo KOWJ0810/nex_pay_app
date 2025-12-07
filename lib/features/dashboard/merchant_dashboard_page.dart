@@ -20,13 +20,10 @@ class MerchantDashboardPage extends StatefulWidget {
 }
 
 class _MerchantDashboardPageState extends State<MerchantDashboardPage> {
-  // ---------------------------------------------------------------------------
-  // STATE VARIABLES
-  // ---------------------------------------------------------------------------
   
   // Filters
   String _selectedPeriod = 'Day'; // Day, Month, Year
-  int? _selectedOutletId; // null = all outlets
+  int? _selectedOutletId; 
   
   // Summary Data
   double _totalRevenue = 0.0;
@@ -65,9 +62,6 @@ class _MerchantDashboardPageState extends State<MerchantDashboardPage> {
     await _loadChart();
   }
 
-  // ---------------------------------------------------------------------------
-  // API CALLS
-  // ---------------------------------------------------------------------------
 
   Future<void> _loadOutlets() async {
     setState(() => _isLoadingOutlets = true);
@@ -106,7 +100,6 @@ class _MerchantDashboardPageState extends State<MerchantDashboardPage> {
       final now = DateTime.now();
       late Uri uri;
 
-      // Base URL construction
       String baseUrl = "${ApiConfig.baseUrl}/merchants/analytics";
       String endpoint = _selectedOutletId == null 
           ? "$baseUrl/merchant" 
@@ -175,9 +168,6 @@ class _MerchantDashboardPageState extends State<MerchantDashboardPage> {
     setState(() => _isLoadingChart = false);
   }
 
-  // ---------------------------------------------------------------------------
-  // HELPERS
-  // ---------------------------------------------------------------------------
   
   String _formatDate(DateTime d) =>
       "${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
@@ -195,16 +185,12 @@ class _MerchantDashboardPageState extends State<MerchantDashboardPage> {
     return value.toStringAsFixed(0);
   }
 
-  // ---------------------------------------------------------------------------
-  // BUILD UI
-  // ---------------------------------------------------------------------------
   @override
   Widget build(BuildContext context) {
     return NexMerchantScaffold(
       currentIndex: 0,
       body: Scaffold(
         backgroundColor: backgroundColor,
-        // SAFE AREA: Fixes the overlap with the status bar (Time/Battery)
         body: SafeArea(
           child: RefreshIndicator(
             onRefresh: _loadAllData,
@@ -212,7 +198,6 @@ class _MerchantDashboardPageState extends State<MerchantDashboardPage> {
             backgroundColor: primaryColor,
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
-              // Added 20 top padding for extra breathing room below status bar
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -233,9 +218,6 @@ class _MerchantDashboardPageState extends State<MerchantDashboardPage> {
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // WIDGET COMPONENTS
-  // ---------------------------------------------------------------------------
 
   Widget _buildHeader() {
     return Row(
@@ -289,7 +271,7 @@ class _MerchantDashboardPageState extends State<MerchantDashboardPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 1. Period Selector (Segmented Control)
+        // Period Selector 
         Container(
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
@@ -332,7 +314,7 @@ class _MerchantDashboardPageState extends State<MerchantDashboardPage> {
         ),
         const SizedBox(height: 16),
         
-        // 2. Outlet Selector
+        // Outlet Selector
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           decoration: BoxDecoration(
@@ -522,7 +504,7 @@ class _MerchantDashboardPageState extends State<MerchantDashboardPage> {
                 : Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Y-Axis Labels (Fixed)
+                      // Y-Axis Labels
                       SizedBox(
                         width: 40,
                         child: Column(
@@ -575,7 +557,6 @@ class _MerchantDashboardPageState extends State<MerchantDashboardPage> {
                                         final i = value.toInt();
                                         if (i < 0 || i >= _chartPoints.length) return const SizedBox();
                                         
-                                        // Skip labels if too many points to avoid overlap
                                         int skip = _chartPoints.length > 10 ? 2 : 1;
                                         if (_chartPoints.length > 20) skip = 3;
                                         
@@ -676,9 +657,6 @@ class _MerchantDashboardPageState extends State<MerchantDashboardPage> {
   }
 }
 
-// ---------------------------------------------------------------------------
-// DATA MODELS
-// ---------------------------------------------------------------------------
 
 class _OutletOption {
   final int? id;

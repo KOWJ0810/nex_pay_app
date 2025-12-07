@@ -6,8 +6,8 @@ import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nex_pay_app/core/service/secure_storage.dart';
-import 'package:screenshot/screenshot.dart'; // Import Screenshot
-import 'package:gal/gal.dart'; // Import Gal
+import 'package:screenshot/screenshot.dart'; 
+import 'package:gal/gal.dart'; 
 import '../../core/constants/api_config.dart';
 import '../../core/constants/colors.dart';
 
@@ -23,12 +23,12 @@ class UserTransactionDetailPage extends StatefulWidget {
 class _UserTransactionDetailPageState extends State<UserTransactionDetailPage> {
   final storage = secureStorage;
   
-  // Screenshot Controller
+
   final ScreenshotController _screenshotController = ScreenshotController();
   
   Map<String, dynamic>? _data;
   bool _isLoading = true;
-  bool _isSaving = false; // For download loading state
+  bool _isSaving = false; 
   String? _errorMessage;
 
   // Formatters
@@ -81,21 +81,21 @@ class _UserTransactionDetailPageState extends State<UserTransactionDetailPage> {
     }
   }
 
-  // ─── DOWNLOAD LOGIC ────────────────────────────────────────────────────────
+  // Download Receipt Flow
   Future<void> _downloadReceipt() async {
     setState(() => _isSaving = true);
 
     try {
-      // 1. Permission Check
+      // Permission Check
       if (!await Gal.hasAccess()) {
         await Gal.requestAccess();
       }
 
-      // 2. Capture Image
+      // Capture Image
       final Uint8List? imageBytes = await _screenshotController.capture();
 
       if (imageBytes != null) {
-        // 3. Save to Gallery
+        // Save to Gallery
         await Gal.putImageBytes(
           imageBytes, 
           name: "NexPay_Txn_${widget.transactionId}"
@@ -139,7 +139,7 @@ class _UserTransactionDetailPageState extends State<UserTransactionDetailPage> {
           onPressed: () => context.pop(),
         ),
         actions: [
-          // Optional: Top right download icon as well
+          // Download Button
           if (!_isLoading && _data != null)
             IconButton(
               onPressed: _isSaving ? null : _downloadReceipt,
@@ -155,16 +155,14 @@ class _UserTransactionDetailPageState extends State<UserTransactionDetailPage> {
                   padding: const EdgeInsets.fromLTRB(24, 10, 24, 40),
                   child: Column(
                     children: [
-                      // ─── START SCREENSHOT AREA ───
                       Screenshot(
                         controller: _screenshotController,
                         child: Container(
-                          // Add padding/color here to ensure the saved image looks like the app view
+                          
                           color: primaryColor, 
                           padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
                           child: Column(
                             children: [
-                              // Amount Hero
                               Text(
                                 _data?['role'] == 'RECEIVER' ? "Received" : "Paid",
                                 style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 16),
@@ -208,7 +206,7 @@ class _UserTransactionDetailPageState extends State<UserTransactionDetailPage> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    // 1. Party Info
+                                    // Target Info
                                     if (_data?['counterpartyName'] != null) ...[
                                       _InfoRow(
                                         label: _data?['role'] == 'SENDER' ? "To" : "From",
@@ -218,7 +216,7 @@ class _UserTransactionDetailPageState extends State<UserTransactionDetailPage> {
                                       const SizedBox(height: 20),
                                     ],
                                     
-                                    // 2. Merchant Info
+                                    // Merchant Info
                                     if (_data?['merchantName'] != null) ...[
                                       _InfoRow(
                                         label: "Merchant",
@@ -232,7 +230,7 @@ class _UserTransactionDetailPageState extends State<UserTransactionDetailPage> {
                                     Divider(color: Colors.grey[200], thickness: 1.5),
                                     const SizedBox(height: 20),
 
-                                    // 3. Details
+                                    // Details
                                     _DetailRow(label: "Date", value: _formatDate(_data?['transactionDateTime'])),
                                     const SizedBox(height: 12),
                                     _DetailRow(label: "Type", value: _data?['action'] ?? '-'),
@@ -246,7 +244,7 @@ class _UserTransactionDetailPageState extends State<UserTransactionDetailPage> {
                                     Divider(color: Colors.grey[200], thickness: 1.5),
                                     const SizedBox(height: 24),
 
-                                    // 4. Reference
+                                    // Reference
                                     Center(
                                       child: Column(
                                         children: [
@@ -278,7 +276,6 @@ class _UserTransactionDetailPageState extends State<UserTransactionDetailPage> {
                           ),
                         ),
                       ),
-                      // ─── END SCREENSHOT AREA ───
 
                       const SizedBox(height: 30),
 
@@ -315,7 +312,6 @@ class _UserTransactionDetailPageState extends State<UserTransactionDetailPage> {
   }
 }
 
-// ─── Helpers ───
 
 class _InfoRow extends StatelessWidget {
   final String label;

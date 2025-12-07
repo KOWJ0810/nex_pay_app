@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/constants/colors.dart';
-import '../../models/registration_data.dart'; // 👈 add this import
+import '../../models/registration_data.dart'; 
 import '../../router.dart' show RouteNames;
 
 class SetupSecurityQuestionsPage extends StatefulWidget {
@@ -75,7 +75,7 @@ class _SetupSecurityQuestionsPageState
 
     setState(() => _saving = true);
     try {
-      // ✅ Push into RegistrationData model for the createUser API
+      // Push into RegistrationData model for the createUser API
       RegistrationData.securityQuestions = [
         SecurityQuestion(question: _q1!.trim(), answer: _a1.text.trim()),
         SecurityQuestion(question: _q2!.trim(), answer: _a2.text.trim()),
@@ -113,7 +113,6 @@ class _SetupSecurityQuestionsPageState
                     children: [
                       const SizedBox(height: 14),
 
-                      // Capsule progress (Start → Verify → Secure). Security Qs = "Secure" step.
                       const _CapsuleProgress(
                         steps: ["Start", "Verify", "Secure"],
                         currentIndex: 3,
@@ -124,7 +123,7 @@ class _SetupSecurityQuestionsPageState
                       const _ShieldLogo(size: 84),
                       const SizedBox(height: 10),
 
-                      // Centered gradient title
+                     
                       Center(
                         child: ShaderMask(
                           shaderCallback: (bounds) => const LinearGradient(
@@ -136,7 +135,7 @@ class _SetupSecurityQuestionsPageState
                             "Set Up Security Questions",
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              color: Colors.white, // masked by shader
+                              color: Colors.white,
                               fontSize: 26,
                               fontWeight: FontWeight.w800,
                             ),
@@ -226,7 +225,7 @@ class _SetupSecurityQuestionsPageState
 
                               const SizedBox(height: 10),
 
-                              // Inline pair error (if any)
+                              // Inline pair error 
                               Builder(
                                 builder: (_) {
                                   final err = _validateQuestionPair();
@@ -305,7 +304,7 @@ class _SetupSecurityQuestionsPageState
     );
   }
 
-  // --- UI helpers ---
+  // UI Elements
 
   Widget _modernDropdown({
     required String? value,
@@ -322,7 +321,6 @@ class _SetupSecurityQuestionsPageState
       menuMaxHeight: 340,
       borderRadius: BorderRadius.circular(14),
 
-      // ✅ Explicit white hint (stays white before selection)
       hint: const Text(
         "Select a question",
         style: TextStyle(color: Colors.white),
@@ -357,7 +355,7 @@ class _SetupSecurityQuestionsPageState
   }) {
     return TextFormField(
       controller: controller,
-      cursorColor: accentColor, // caret uses your accent color
+      cursorColor: accentColor, 
       style: const TextStyle(color: Colors.white),
       decoration: _fieldDecoration(
         hint: hint,
@@ -388,7 +386,6 @@ class _SetupSecurityQuestionsPageState
   }
 }
 
-// ==== Reusable UI bits for consistency with the rest of onboarding ====
 
 class _GlassCard extends StatelessWidget {
   final Widget child;
@@ -462,7 +459,7 @@ class _LabelWithChip extends StatelessWidget {
 
 class _CapsuleProgress extends StatelessWidget {
   final List<String> steps;
-  final int currentIndex; // 1-indexed visual
+  final int currentIndex; 
   const _CapsuleProgress({required this.steps, required this.currentIndex});
 
   @override

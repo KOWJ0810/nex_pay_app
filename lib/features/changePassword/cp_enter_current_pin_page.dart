@@ -165,9 +165,7 @@ class _CPEnterCurrentPinPageState extends State<CPEnterCurrentPinPage> {
     );
   }
 
-  // ======================================================
-  // 🔐 VERIFY CURRENT PIN
-  // ======================================================
+  // verify current pin
   Future<void> _verifyPin() async {
     setState(() {
       isLoading = true;

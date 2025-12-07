@@ -158,7 +158,7 @@ class WelcomePage extends StatelessWidget {
   }
 }
 
-/// ✅ Glowing wallet icon
+/// Glowing wallet icon
 class _WalletLogo extends StatelessWidget {
   final double size;
   const _WalletLogo({required this.size});

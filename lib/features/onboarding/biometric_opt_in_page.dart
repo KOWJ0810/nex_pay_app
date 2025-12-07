@@ -1,4 +1,4 @@
-// lib/features/onboarding/biometric_opt_in_page.dart
+
 import 'dart:math' as math;
 import 'dart:ui';
 import 'dart:convert';
@@ -12,7 +12,7 @@ import 'package:http/http.dart' as http;
 
 import '../../core/constants/colors.dart';
 import '../../router.dart';
-import '../../core/constants/api_config.dart'; // <-- ensure you have ApiConfig.baseUrl
+import '../../core/constants/api_config.dart'; 
 
 class BiometricOptInPage extends StatefulWidget {
   const BiometricOptInPage({super.key});
@@ -68,6 +68,7 @@ class _BiometricOptInPageState extends State<BiometricOptInPage>
     super.dispose();
   }
 
+  // Check device biometric support and enrollment
   Future<void> _initBio() async {
     final supported = await _auth.isDeviceSupported();
     final canCheck = await _auth.canCheckBiometrics;
@@ -112,11 +113,11 @@ class _BiometricOptInPageState extends State<BiometricOptInPage>
         return;
       }
 
-      // Update server: biometric_enable = true
+      // Update Biometric Equal True on server
       final ok = await _updateBiometricSetting(true);
       if (!ok) return; // _error already set by helper
 
-      // Persist local flag for quick checks in app
+      // Set and Store Biometric Enabled locally
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('biometric_enabled', true);
 
@@ -136,7 +137,7 @@ class _BiometricOptInPageState extends State<BiometricOptInPage>
     });
 
     try {
-      // Update server: biometric_enable = false
+      // Update Biometric Equal False on server
       final ok = await _updateBiometricSetting(false);
       if (!ok) return;
 
@@ -150,10 +151,10 @@ class _BiometricOptInPageState extends State<BiometricOptInPage>
     }
   }
 
-  /// PUT /api/users/{user_id}/biometric  { "biometric_enable": <bool> }
+  
   Future<bool> _updateBiometricSetting(bool enabled) async {
     try {
-      // try secure storage first
+      
       String? userId = await _secure.read(key: 'user_id');
       String? token = await _secure.read(key: 'token');
 
@@ -180,8 +181,7 @@ class _BiometricOptInPageState extends State<BiometricOptInPage>
           .timeout(const Duration(seconds: 20));
 
       if (resp.statusCode >= 200 && resp.statusCode < 300) {
-        // Example response:
-        // { "message":"Biometric setting updated successfully.", "biometric_enable": false, "success": true }
+        
         try {
           final json = jsonDecode(resp.body);
           final serverVal = json is Map ? json['biometric_enable'] : null;
@@ -190,11 +190,10 @@ class _BiometricOptInPageState extends State<BiometricOptInPage>
             await prefs.setBool('biometric_enabled', serverVal);
           }
         } catch (_) {
-          // ignore parse errors; local value already set by caller
+          // ignore JSON parse errors
         }
         return true;
       } else {
-        // Surface server message when possible
         String msg = enabled
             ? "Failed to enable biometric."
             : "Failed to update biometric setting.";
@@ -395,7 +394,7 @@ class _BiometricOptInPageState extends State<BiometricOptInPage>
   }
 }
 
-// --- Animated fingerprint ---
+//  Animated fingerprint 
 class _HeroLock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -442,7 +441,7 @@ class _HeroLock extends StatelessWidget {
   }
 }
 
-// --- Frosted blur overlay ---
+// Frosted blur overlay 
 class _BlurOverlay extends StatelessWidget {
   final Widget child;
   const _BlurOverlay({required this.child});
@@ -465,7 +464,6 @@ class _BlurOverlay extends StatelessWidget {
   }
 }
 
-// --- Frosted card with custom spinner ---
 class _FrostedLoading extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -506,7 +504,7 @@ class _FrostedLoading extends StatelessWidget {
   }
 }
 
-// --- Spinner animation ---
+// Spinner animation 
 class _ArcSpinner extends StatelessWidget {
   final AnimationController controller;
   final double size;
@@ -576,7 +574,7 @@ class _ArcSpinnerPainter extends CustomPainter {
       oldDelegate.progress != progress;
 }
 
-// --- Supporting UI elements ---
+
 class _InfoRow extends StatelessWidget {
   final IconData icon;
   final String text;

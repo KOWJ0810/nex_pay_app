@@ -1,4 +1,3 @@
-// lib/features/changePassword/cp_confirm_new_pin_page.dart
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -91,7 +90,7 @@ class _CPConfirmNewPinPageState extends State<CPConfirmNewPinPage> {
               ),
             ),
 
-            // PIN Boxes
+            // PIN Box
             GestureDetector(
               onTap: () => _pinFocus.requestFocus(),
               child: Row(
@@ -171,9 +170,7 @@ class _CPConfirmNewPinPageState extends State<CPConfirmNewPinPage> {
     );
   }
 
-  // ======================================================
-  // 🔐 CONFIRM PIN + SEND OTP
-  // ======================================================
+  // confirm pin and send OTP
   Future<void> _onConfirmPin() async {
     final confirmPin = _pinController.text;
 
@@ -191,7 +188,7 @@ class _CPConfirmNewPinPageState extends State<CPConfirmNewPinPage> {
     try {
       const storage = secureStorage;
       final authToken = await storage.read(key: "token");
-      final email = await storage.read(key: "user_email"); // Assuming email stored
+      final email = await storage.read(key: "user_email"); 
 
       if (authToken == null || email == null) {
         setState(() => errorMessage = "Authentication required.");

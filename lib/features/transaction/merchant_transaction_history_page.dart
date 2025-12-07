@@ -57,7 +57,7 @@ class _MerchantTransactionHistoryPageState
 
     loadingOutlets = false;
 
-    // load transaction for ALL outlets on first load
+    // load transaction for all outlets on first load
     await _loadTransactions();
 
     if (mounted) setState(() {});
@@ -120,9 +120,6 @@ class _MerchantTransactionHistoryPageState
     );
   }
 
-  // ──────────────────────────────────────────────
-  // HEADER UI
-  // ──────────────────────────────────────────────
   Widget _buildHeader() {
     return Container(
       width: double.infinity,
@@ -150,9 +147,7 @@ class _MerchantTransactionHistoryPageState
     );
   }
 
-  // ──────────────────────────────────────────────
-  // OUTLET FILTER DROPDOWN
-  // ──────────────────────────────────────────────
+  // Outlet Filter Dropdown
   Widget _buildOutletDropdown() {
     if (loadingOutlets) {
       return const Center(
@@ -200,9 +195,7 @@ class _MerchantTransactionHistoryPageState
     );
   }
 
-  // ──────────────────────────────────────────────
-  // TRANSACTION LIST (NULL SAFE)
-  // ──────────────────────────────────────────────
+  // Transaction List 
   Widget _buildTransactionList() {
     if (loadingTransactions) {
       return const Center(child: CircularProgressIndicator());
@@ -223,7 +216,6 @@ class _MerchantTransactionHistoryPageState
       itemBuilder: (context, index) {
         final t = transactions[index];
 
-        // Null-safe fields
         final refNum = (t["transactionRefNum"] ?? "-").toString();
 
         final amountValue = t["amount"];

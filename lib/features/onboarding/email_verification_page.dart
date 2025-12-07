@@ -140,9 +140,8 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
     }
   }
 
-  // Smart paste + next focus on type + fallback backspace handling
+  
   void _onOtpChanged(int index, String value) {
-    // Smart paste in first box
     if (index == 0 && value.length >= 2) {
       final digits = value.replaceAll(RegExp(r'\D'), '');
       if (digits.isNotEmpty) {
@@ -161,7 +160,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
       _controllers[index].selection = const TextSelection.collapsed(offset: 1);
     }
 
-    // NEW: fallback backspace logic — if field becomes empty, hop back & clear previous
+    // fallback backspace logic, if field becomes empty, hop back & clear previous
     if (value.isEmpty && index > 0) {
       _controllers[index - 1].text = '';
       _nodes[index - 1].requestFocus();
@@ -174,7 +173,6 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
     }
   }
 
-  // Key-event backspace helper (for hardware keyboards)
   void _onBackspace(int index) {
     if (_controllers[index].text.isEmpty && index > 0) {
       _controllers[index - 1].text = '';
@@ -455,7 +453,7 @@ class _CapsuleProgress extends StatelessWidget {
   }
 }
 
-/// OTP input box (one digit) with backspace handling
+/// OTP input box with backspace handling
 class _OtpBox extends StatelessWidget {
   final TextEditingController controller;
   final FocusNode focusNode;

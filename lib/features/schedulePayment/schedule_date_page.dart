@@ -183,7 +183,7 @@ class _ScheduleDatePageState extends State<ScheduleDatePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 🔹 User Info
+            // User Info
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -239,7 +239,7 @@ class _ScheduleDatePageState extends State<ScheduleDatePage> {
 
             const SizedBox(height: 30),
 
-            // 🔹 Start Date Selection
+            // Start Date Selection
             const Text(
               "Select Start Date",
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
@@ -311,7 +311,7 @@ class _ScheduleDatePageState extends State<ScheduleDatePage> {
 
             const SizedBox(height: 30),
 
-            // 🔹 Frequency Dropdown
+            // Frequency Dropdown
             const Text(
               "Select Frequency",
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
@@ -347,7 +347,7 @@ class _ScheduleDatePageState extends State<ScheduleDatePage> {
 
             const Spacer(),
 
-            // 🔹 Continue Button
+            // Continue Button
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(

@@ -55,7 +55,7 @@ class _ICVerificationPageState extends State<ICVerificationPage> {
       await _extractTextFromImage(imageFile);
     }
   }
-
+  // Text Extraction Using Google ML Kit
   Future<void> _extractTextFromImage(File imageFile) async {
     setState(() => _processing = true);
     final inputImage = InputImage.fromFile(imageFile);
@@ -66,7 +66,7 @@ class _ICVerificationPageState extends State<ICVerificationPage> {
           await textRecognizer.processImage(inputImage);
       final fullText = recognizedText.text;
 
-      // IC number (MyKad formats)
+      // Detect IC number
       final icRegex = RegExp(r'\d{6}-\d{2}-\d{4}|\d{12}');
       final icMatch = icRegex.firstMatch(fullText);
 
@@ -273,7 +273,7 @@ class _ICVerificationPageState extends State<ICVerificationPage> {
                             ),
                             const SizedBox(height: 12),
 
-                            // Tips in two rows: 2 on the first row, 1 centered on the second row
+                            // Info
                             Row(
                               children: const [
                                 Expanded(
@@ -411,7 +411,7 @@ class _ICVerificationPageState extends State<ICVerificationPage> {
   }
 }
 
-/// Tip chip (wrap-safe)
+
 class _TipChip extends StatelessWidget {
   final IconData icon;
   final String text;
@@ -511,7 +511,7 @@ class _CornersPainter extends CustomPainter {
       oldDelegate.stroke != stroke;
 }
 
-/// Capsule progress (3 steps)
+/// Capsule progress show the 3 steps
 class _CapsuleProgress extends StatelessWidget {
   final List<String> steps;
   final int currentIndex;

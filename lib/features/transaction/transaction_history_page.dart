@@ -26,7 +26,7 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
   bool _showChart = false;
   int _filterType = 0; // 0=All, 1=In, 2=Out
 
-  // Merchant Type Filtering (NEW)
+  // Merchant Type Filtering 
   String _selectedMerchantType = 'All';
   List<String> _availableMerchantTypes = ['All'];
 
@@ -69,7 +69,6 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
     _applyFilters();
   }
 
-  // ─── Data Loading ──────────────────────────────────────────────────────────
 
   void _changeMonth(int monthsToAdd) {
     setState(() {
@@ -106,7 +105,7 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
         if (data['success'] == true) {
           final items = data['items'] as List<dynamic>;
           
-          // EXTRACT UNIQUE MERCHANT TYPES
+          // Extract unique merchant types for filtering
           final Set<String> types = {'All'};
           for (var item in items) {
             if (item['merchantType'] != null && item['merchantType'].toString().isNotEmpty) {
@@ -158,7 +157,6 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
     }
   }
 
-  // ─── Data Processing ───────────────────────────────────────────────────────
 
   void _applyFilters() {
     final query = _searchController.text.toLowerCase();
@@ -168,17 +166,17 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
         final name = (tx['counterpartyName'] ?? '').toString().toLowerCase();
         final matchesSearch = name.contains(query);
 
-        // 1. Role Filter (All/In/Out)
+        // All, Incoming Or Outgoing
         bool matchesRole = true;
         if (_filterType == 1) matchesRole = tx['role'] == 'RECEIVER';
         if (_filterType == 2) matchesRole = tx['role'] == 'SENDER';
 
-        // 2. Month Filter
+        //  Month Filter
         final txDate = DateTime.parse(tx['transactionDateTime']);
         bool matchesMonth = txDate.year == _selectedMonth.year &&
             txDate.month == _selectedMonth.month;
 
-        // 3. Merchant Type Filter (NEW)
+        //  Merchant Type Filter 
         bool matchesType = true;
         if (_selectedMerchantType != 'All') {
           final type = tx['merchantType'] ?? '';
@@ -236,7 +234,7 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
     return sum.toStringAsFixed(0);
   }
 
-  // ─── UI Build ──────────────────────────────────────────────────────────────
+
 
   @override
   Widget build(BuildContext context) {
@@ -265,7 +263,6 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
     );
   }
 
-  // ─── Header Widgets ────────────────────────────────────────────────────────
 
   Widget _buildHeader() {
     return Padding(
@@ -366,11 +363,9 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
     );
   }
 
-  // ─── Analytics View ────────────────────────────────────────────────────────
+  // Analytic View
 
   Widget _buildAnalyticsView() {
-    // ... (Analytics View code remains the same as previous)
-    // For brevity, using the same implementation you already have
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -497,7 +492,6 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
     );
   }
 
-  // ─── List View (UPDATED) ───────────────────────────────────────────────────
 
   Widget _buildListView() {
     return Column(
@@ -519,7 +513,7 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
     );
   }
 
-  // NEW: Merchant Type Chips
+  // Merchant Type Filter
   Widget _buildMerchantTypeFilter() {
     return SizedBox(
       height: 50,
@@ -662,7 +656,7 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
     return Padding(padding: const EdgeInsets.only(top: 24, bottom: 12), child: Text(label.toUpperCase(), style: TextStyle(color: Colors.grey[500], fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.0)));
   }
 
-  // UPDATED: Transaction Tile to show Merchant Type
+  // Transaction Tile to show Merchant Type
   Widget _buildTransactionTile(dynamic tx) {
     final amount = double.tryParse(tx['amount'].toString()) ?? 0.0;
     final isReceiver = tx['role'] == 'RECEIVER';
@@ -739,7 +733,7 @@ class _TransactionHistoryPageState extends State<TransactionHistoryPage> {
     ]));
   }
 
-  // ─── Helpers for Pie Chart (Unchanged) ───
+  // Pie Chart
   List<PieChartSectionData> _buildPieChartSections() {
     return List.generate(_categoryData.length, (i) {
       final isTouched = i == _touchedIndex;

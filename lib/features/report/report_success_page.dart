@@ -73,7 +73,6 @@ class ReportSuccessPage extends StatelessWidget {
 
                 const SizedBox(height: 32),
 
-                // 2. Details Card
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(24),
@@ -83,7 +82,6 @@ class ReportSuccessPage extends StatelessWidget {
                   ),
                   child: Column(
                     children: [
-                      // Info Box
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
@@ -123,13 +121,11 @@ class ReportSuccessPage extends StatelessWidget {
 
                 const SizedBox(height: 40),
 
-                // 3. Done Button
                 SizedBox(
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton(
                     onPressed: () {
-                      // Pop back to Report List
                       if (context.canPop()) {
                         context.pop(true); 
                       } else {
@@ -154,7 +150,6 @@ class ReportSuccessPage extends StatelessWidget {
   }
 }
 
-// ─── Helper Widget ───
 class _InfoRow extends StatelessWidget {
   final String label;
   final String value;
@@ -184,7 +179,7 @@ class _InfoRow extends StatelessWidget {
             value,
             textAlign: TextAlign.right,
             style: TextStyle(
-              color: valueColor ?? const Color(0xFF102520), // Primary Color
+              color: valueColor ?? const Color(0xFF102520), 
               fontSize: 13,
               fontWeight: FontWeight.w700,
               fontFamily: isMono ? 'monospace' : null,

@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // For Haptics
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:nex_pay_app/core/service/secure_storage.dart';
-import '../../core/constants/colors.dart'; // Ensure primaryColor/accentColor exist here
+import '../../core/constants/colors.dart'; 
 import '../../core/constants/api_config.dart';
 import 'package:go_router/go_router.dart';
 
@@ -24,7 +24,7 @@ class _TransactionLimitPageState extends State<TransactionLimitPage> {
 
   // Rules
   final double perTransferMin = 100;
-  final double perTransferMax = 10000; // Rounded for cleaner slider
+  final double perTransferMax = 10000; 
   final double dailyMin = 100;
   final double dailyMax = 120000;
 
@@ -40,7 +40,6 @@ class _TransactionLimitPageState extends State<TransactionLimitPage> {
     _loadSpendingLimit();
   }
 
-  // ─── API LOGIC ─────────────────────────────────────────────────────────────
   Future<void> _loadSpendingLimit() async {
     final token = await storage.read(key: "token");
     if (token == null) return;
@@ -126,14 +125,12 @@ class _TransactionLimitPageState extends State<TransactionLimitPage> {
     return "RM ${format.format(value)}";
   }
 
-  // ─── UI BUILD ──────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6F8),
       body: Column(
         children: [
-          // 1. Custom Gradient Header
           Container(
             padding: const EdgeInsets.only(top: 60, bottom: 20, left: 16, right: 16),
             decoration: BoxDecoration(
@@ -164,12 +161,11 @@ class _TransactionLimitPageState extends State<TransactionLimitPage> {
                     style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ),
-                const SizedBox(width: 48), // Spacer to balance back button
+                const SizedBox(width: 48), 
               ],
             ),
           ),
 
-          // 2. Body
           Expanded(
             child: isLoading
                 ? const Center(child: CircularProgressIndicator(color: primaryColor))
@@ -203,7 +199,7 @@ class _TransactionLimitPageState extends State<TransactionLimitPage> {
                             setState(() => dailyLimit = val);
                           },
                         ),
-                        const SizedBox(height: 100), // Space for bottom button
+                        const SizedBox(height: 100), 
                       ],
                     ),
                   ),
@@ -211,7 +207,7 @@ class _TransactionLimitPageState extends State<TransactionLimitPage> {
         ],
       ),
 
-      // 3. Floating Save Button
+      // Save Button
       bottomNavigationBar: Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
@@ -246,7 +242,7 @@ class _TransactionLimitPageState extends State<TransactionLimitPage> {
     );
   }
 
-  // ─── CUSTOM SLIDER CARD ────────────────────────────────────────────────────
+  // Slider
   Widget _buildSliderCard({
     required String title,
     required String subtitle,
@@ -288,7 +284,7 @@ class _TransactionLimitPageState extends State<TransactionLimitPage> {
           
           const SizedBox(height: 24),
 
-          // Big Amount Display
+          // Amount Display
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 16),

@@ -42,7 +42,7 @@ class _SelfiePageState extends State<SelfiePage> {
 
     setState(() => _isLoading = true);
 
-    // Simulate short validation
+    // loading
     Future.delayed(const Duration(milliseconds: 800), () {
       setState(() => _isLoading = false);
       RegistrationData.selfieImage = selfieImage;
@@ -243,7 +243,7 @@ class _SelfiePageState extends State<SelfiePage> {
   }
 }
 
-/// Capsule step progress bar
+// Progress Bar
 class _CapsuleProgress extends StatelessWidget {
   final List<String> steps;
   final int currentIndex;
@@ -320,7 +320,7 @@ class _CapsuleProgress extends StatelessWidget {
   }
 }
 
-/// Glassmorphic card container
+// Glass Card Container
 class _GlassCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
@@ -348,7 +348,7 @@ class _GlassCard extends StatelessWidget {
   }
 }
 
-/// Selfie logo
+//// Selfie logo
 class _SelfieLogo extends StatelessWidget {
   final double size;
   const _SelfieLogo({required this.size});
@@ -394,7 +394,7 @@ class _SelfieLogo extends StatelessWidget {
   }
 }
 
-/// Background blobs for glow
+// Background blobs for glow
 class _BackgroundBlobs extends StatelessWidget {
   const _BackgroundBlobs();
 
