@@ -37,7 +37,7 @@ class RegistrationData {
   }) {
     return {
       "username": fullName,
-      "ic_num": icNum,
+      "icNum": icNum,
       "phoneNum": phoneNum,
       "ic_image_front": icFrontUrl,
       "ic_image_back": icBackUrl,
