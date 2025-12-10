@@ -258,10 +258,6 @@ class _MerchantDashboardPageState extends State<MerchantDashboardPage> {
               ),
             ],
           ),
-          child: IconButton(
-            icon: const Icon(Icons.notifications_none_rounded, color: primaryColor),
-            onPressed: () {},
-          ),
         )
       ],
     );
