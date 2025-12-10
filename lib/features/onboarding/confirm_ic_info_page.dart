@@ -3,12 +3,15 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../../core/constants/api_config.dart';
 
 import '../../core/constants/colors.dart';
 import '../../models/registration_data.dart';
 import '../../router.dart';
 
-// Uppercase input formatter
+/// Uppercase input (kept from your version)
 class UpperCaseTextFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
@@ -22,7 +25,7 @@ class UpperCaseTextFormatter extends TextInputFormatter {
   }
 }
 
-// Auto-format IC number while typing
+/// Auto-format IC number as XXXXXX-XX-XXXX while typing
 class ICNumberFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
@@ -43,6 +46,7 @@ class ICNumberFormatter extends TextInputFormatter {
     }
     final formatted = buf.toString();
 
+    // Keep caret at end (simple + reliable for OTP-like entry)
     return TextEditingValue(
       text: formatted,
       selection: TextSelection.collapsed(offset: formatted.length),
@@ -71,17 +75,18 @@ class ConfirmICInfoPage extends StatefulWidget {
 class _ConfirmICInfoPageState extends State<ConfirmICInfoPage> {
   late TextEditingController nameController;
   late TextEditingController icController;
+  bool _isCheckingIc = false;
 
   @override
   void initState() {
     super.initState();
     nameController = TextEditingController(text: widget.fullName);
+    // Normalize incoming IC to dashed format once at init
     icController = TextEditingController(
       text: _formatInitialIC(widget.icNumber),
     );
   }
 
-  // Make IC to Dashed Format
   String _formatInitialIC(String raw) {
     var digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
     if (digits.length > 12) digits = digits.substring(0, 12);
@@ -100,13 +105,80 @@ class _ConfirmICInfoPageState extends State<ConfirmICInfoPage> {
     super.dispose();
   }
 
-  void _onNext() {
-    RegistrationData.fullName = nameController.text.trim();
-    RegistrationData.icNum = icController.text.trim();
-    RegistrationData.icFrontImage = widget.icImage;
-    RegistrationData.icBackImage = widget.icBackImage;
+  Future<void> _onNext() async {
+    final ic = icController.text.trim();
+    final name = nameController.text.trim();
 
-    context.pushNamed(RouteNames.addressInfo);
+    if (ic.isEmpty || name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill in your name and IC number.')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isCheckingIc = true;
+    });
+
+    try {
+      final uri = Uri.parse('${ApiConfig.baseUrl}/users/check-ic')
+          .replace(queryParameters: {'icNumber': ic});
+
+      final res = await http.get(uri);
+
+      if (!mounted) return;
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        final exists = data['exists'] == true;
+
+        if (exists) {
+          await showDialog<void>(
+            context: context,
+            builder: (ctx) {
+              return AlertDialog(
+                title: const Text('IC Already Registered'),
+                content: const Text(
+                  'This IC number is already associated with an existing NexPay account. '
+                  'Please use a different IC or contact support if you believe this is a mistake.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    child: const Text('OK'),
+                  ),
+                ],
+              );
+            },
+          );
+          return;
+        }
+
+        RegistrationData.fullName = name;
+        RegistrationData.icNum = ic;
+        RegistrationData.icFrontImage = widget.icImage;
+        RegistrationData.icBackImage = widget.icBackImage;
+
+        context.pushNamed(RouteNames.addressInfo);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to verify IC. (${res.statusCode}) Please try again.'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Connection error while checking IC. Please try again.')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCheckingIc = false;
+        });
+      }
+    }
   }
 
   @override
@@ -130,10 +202,10 @@ class _ConfirmICInfoPageState extends State<ConfirmICInfoPage> {
                     children: [
                       const SizedBox(height: 14),
 
-                      // Capsule progress Step 2
+                      // Capsule progress — still "Step 2" in overall flow (no explicit Step label)
                       const _CapsuleProgress(
                         steps: ["Start", "Verify", "Secure"],
-                        currentIndex: 2, 
+                        currentIndex: 2, // still at step 2
                       ),
 
                       const SizedBox(height: 24),
@@ -228,7 +300,7 @@ class _ConfirmICInfoPageState extends State<ConfirmICInfoPage> {
 
                       const SizedBox(height: 20),
 
-                     
+                      // Continue CTA
                       Container(
                         decoration: BoxDecoration(
                           boxShadow: [
@@ -242,7 +314,7 @@ class _ConfirmICInfoPageState extends State<ConfirmICInfoPage> {
                           borderRadius: BorderRadius.circular(18),
                         ),
                         child: ElevatedButton.icon(
-                          onPressed: _onNext,
+                          onPressed: _isCheckingIc ? null : _onNext,
                           icon: const Icon(Icons.arrow_forward_rounded, color: Colors.black),
                           label: const Text(
                             "Next",
@@ -276,7 +348,7 @@ class _ConfirmICInfoPageState extends State<ConfirmICInfoPage> {
   }
 }
 
-// Label style above inputs
+/// Label style above inputs
 class _FieldLabel extends StatelessWidget {
   final String text;
   const _FieldLabel(this.text);
@@ -294,7 +366,7 @@ class _FieldLabel extends StatelessWidget {
   }
 }
 
-// Filled rounded input used across onboarding
+/// Filled rounded input used across onboarding
 class _FilledField extends StatelessWidget {
   final TextEditingController controller;
   final String hintText;
@@ -379,7 +451,7 @@ class _ImagePreview extends StatelessWidget {
   }
 }
 
-// Progress Bar
+/// Capsule Step Progress Bar (no explicit "Step X" label)
 class _CapsuleProgress extends StatelessWidget {
   final List<String> steps;
   final int currentIndex;
@@ -397,8 +469,8 @@ class _CapsuleProgress extends StatelessWidget {
           borderRadius: BorderRadius.circular(999),
           child: Row(
             children: List.generate(steps.length, (i) {
-              final isDone = i < currentIndex - 1;     
-              final isCurrent = i == currentIndex - 1; 
+              final isDone = i < currentIndex - 1;     // completed before current step
+              final isCurrent = i == currentIndex - 1; // current step (1-indexed visual)
               return Expanded(
                 child: Container(
                   height: 10,
@@ -484,7 +556,7 @@ class _GlassCard extends StatelessWidget {
   }
 }
 
-/// Glowing ID logo
+/// Glowing ID logo (for title area)
 class _IdCardLogo extends StatelessWidget {
   final double size;
   const _IdCardLogo({required this.size});
@@ -494,6 +566,7 @@ class _IdCardLogo extends StatelessWidget {
     return Stack(
       alignment: Alignment.center,
       children: [
+        // Glow
         Container(
           width: size,
           height: size,
@@ -508,6 +581,7 @@ class _IdCardLogo extends StatelessWidget {
             ],
           ),
         ),
+        // Circle w/ border
         Container(
           width: size,
           height: size,
