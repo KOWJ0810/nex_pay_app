@@ -281,7 +281,6 @@ class _DashboardPageState extends State<DashboardPage> {
                         children: [
                           const Text('Quick Actions', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
                           const Spacer(),
-                          TextButton(onPressed: () {}, child: const Text('Manage')),
                         ],
                       ),
                       const SizedBox(height: 6),

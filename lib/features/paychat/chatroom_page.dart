@@ -931,37 +931,71 @@ Future<void> _loadGroupMemberNames() async {
   }
 
   void _openActionsSheet() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(24),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.95),
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(
-                      color: Colors.black.withOpacity(0.05),
-                      width: 0.7,
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: Colors.transparent,
+    builder: (ctx) {
+      return SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.95),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: Colors.black.withOpacity(0.05),
+                    width: 0.7,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 18,
+                      offset: const Offset(0, 8),
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 18,
-                        offset: const Offset(0, 8),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+
+                    // ---------------------------------------------------------
+                    // (1) Group Chat → show ONLY "Group payment"
+                    // ---------------------------------------------------------
+                    if (_isGroupChat) ...[
+                      ListTile(
+                        leading: CircleAvatar(
+                          radius: 18,
+                          backgroundColor: const Color(0xFF34C759).withOpacity(0.12),
+                          child: const Icon(
+                            Icons.group_outlined,
+                            size: 18,
+                            color: Color(0xFF34C759),
+                          ),
+                        ),
+                        title: const Text(
+                          'Group payment',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        subtitle: const Text(
+                          'Split a bill with this group',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          _openGroupPaymentSheet();
+                        },
                       ),
                     ],
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
+
+                    // ---------------------------------------------------------
+                    // (2) NOT Group Chat → show "Schedule payment" + "Payment request"
+                    // ---------------------------------------------------------
+                    if (!_isGroupChat) ...[
                       ListTile(
                         leading: CircleAvatar(
                           radius: 18,
@@ -984,72 +1018,48 @@ Future<void> _loadGroupMemberNames() async {
                           context.pushNamed(
                             RouteNames.allSchedule,
                             extra: {
-                              'user_id': _otherUserId ,    // <-- replace with your actual userId
+                              'user_id': _otherUserId,
                             },
                           );
                         },
                       ),
+
                       const Divider(height: 0),
-                      if (!_isGroupChat)
-                        ListTile(
-                          leading: CircleAvatar(
-                            radius: 18,
-                            backgroundColor:
-                                const Color(0xFF0A84FF).withOpacity(0.12),
-                            child: const Icon(
-                              Icons.request_page_outlined,
-                              size: 18,
-                              color: Color(0xFF0A84FF),
-                            ),
+
+                      ListTile(
+                        leading: CircleAvatar(
+                          radius: 18,
+                          backgroundColor: const Color(0xFF0A84FF).withOpacity(0.12),
+                          child: const Icon(
+                            Icons.request_page_outlined,
+                            size: 18,
+                            color: Color(0xFF0A84FF),
                           ),
-                          title: const Text(
-                            'Payment request',
-                            style: TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          subtitle: const Text(
-                            'Ask your friend to pay you',
-                            style: TextStyle(fontSize: 12),
-                          ),
-                          onTap: () {
-                            Navigator.of(ctx).pop();
-                            _openPaymentRequestSheet();
-                          },
                         ),
-                      if (_isGroupChat)
-                        ListTile(
-                          leading: CircleAvatar(
-                            radius: 18,
-                            backgroundColor:
-                                const Color(0xFF34C759).withOpacity(0.12),
-                            child: const Icon(
-                              Icons.group_outlined,
-                              size: 18,
-                              color: Color(0xFF34C759),
-                            ),
-                          ),
-                          title: const Text(
-                            'Group payment',
-                            style: TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          subtitle: const Text(
-                            'Split a bill with this group',
-                            style: TextStyle(fontSize: 12),
-                          ),
-                          onTap: () {
-                            Navigator.of(ctx).pop();
-                            _openGroupPaymentSheet();
-                          },
+                        title: const Text(
+                          'Payment request',
+                          style: TextStyle(fontWeight: FontWeight.w600),
                         ),
+                        subtitle: const Text(
+                          'Ask your friend to pay you',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          _openPaymentRequestSheet();
+                        },
+                      ),
                     ],
-                  ),
+                  ],
                 ),
               ),
             ),
           ),
-        );
-      },
-    );
-  }
+        ),
+      );
+    },
+  );
+}
 
   void _openSchedulePayment() {
     // TODO: Replace with your actual schedule payment route
@@ -3237,10 +3247,6 @@ Future<void> _loadGroupMemberNames() async {
                             ),
                           ),
                           const SizedBox(width: 4),
-                          Icon(
-                            Icons.more_vert_rounded,
-                            color: Colors.black87,
-                          ),
                         ],
                       ),
                     ),

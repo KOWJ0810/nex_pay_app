@@ -353,20 +353,7 @@ class _PayChatPageState extends State<PayChatPage> {
                             ),
                             onPressed: _openNewChatSheet,
                           ),
-                          IconButton(
-                            tooltip: 'Settings',
-                            icon: const Icon(
-                              Icons.settings_outlined,
-                              color: Colors.white,
-                            ),
-                            onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text("Settings tapped"),
-                                ),
-                              );
-                            },
-                          ),
+                          
                         ],
                       ),
                     ],
