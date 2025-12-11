@@ -127,9 +127,10 @@ class _ConfirmPinPageState extends State<ConfirmPinPage>
     await _secure.write(key: 'token', value: token);
     await _secure.write(key: 'user_id', value: '${user['user_id'] ?? ''}');
     await _secure.write(key: 'username', value: (user['username'] ?? ''));
-    await _secure.write(key: 'email', value: (user['email'] ?? ''));
-    await _secure.write(key: 'phoneNum', value: (user['phoneNum'] ?? ''));
+    await _secure.write(key: 'user_email', value: (user['email'] ?? ''));
+    await _secure.write(key: 'user_phone', value: (user['phoneNum'] ?? ''));
     await _secure.write(key: 'user_status', value: (user['user_status'] ?? ''));
+
   }
 
   /// Generate or reuse a stable device_id for this install
