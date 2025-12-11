@@ -270,7 +270,7 @@ class _ConfirmPinPageState extends State<ConfirmPinPage>
         "username": RegistrationData.fullName.isEmpty
             ? "User"
             : RegistrationData.fullName,
-        "ic_num": RegistrationData.icNum,
+        "icNum": RegistrationData.icNum,
         "phoneNum": RegistrationData.phoneNum,
 
         "profile_image": selfieUrl,
