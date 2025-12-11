@@ -405,14 +405,14 @@ class _LoginPageState extends State<LoginPage> {
         await prefs.setBool('biometric_enabled', serverBiometric);
       }
 
-      final hasChosenBiometric = (serverBiometric != null) || (localBiometric != null);
-      if (!hasChosenBiometric) {
-        // Keep the session saved, then go to opt-in
-        if (!mounted) return;
-        context.goNamed(RouteNames.enableBiometric);
-        navigated = true;
-        return;
-      }
+      // final hasChosenBiometric = (serverBiometric != null) || (localBiometric != null);
+      // if (!hasChosenBiometric) {
+      //   // Keep the session saved, then go to opt-in
+      //   if (!mounted) return;
+      //   context.goNamed(RouteNames.enableBiometric);
+      //   navigated = true;
+      //   return;
+      // }
 
       // 4) Device trust checks (same as before)
       final localDeviceId = await _ensureDeviceId();
