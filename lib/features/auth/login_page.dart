@@ -755,14 +755,6 @@ class _LoginPageState extends State<LoginPage> {
 
                 const SizedBox(height: 10),
 
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: _isLoading ? null : _showForgotPinDialog,
-                    child: Text('Forgot PIN?', style: TextStyle(color: accentColor)),
-                  ),
-                ),
-
                 if (errorMessage.isNotEmpty) ...[
                   const SizedBox(height: 6),
                   Text(errorMessage, style: const TextStyle(color: Colors.redAccent)),
