@@ -54,14 +54,18 @@ class _ScheduleDatePageState extends State<ScheduleDatePage> {
     _fetchUserData();
   }
 
+  // ⭐ Disable TODAY — only allow selecting from tomorrow onwards
   void _selectDate() async {
     final DateTime now = DateTime.now();
+    final DateTime tomorrow = now.add(const Duration(days: 1));
+
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: now,
-      firstDate: now,
+      initialDate: tomorrow, // ⭐ default = tomorrow
+      firstDate: tomorrow,   // ⭐ today disabled
       lastDate: DateTime(now.year + 2),
     );
+
     if (picked != null) {
       setState(() {
         _selectedDate = picked;
@@ -69,14 +73,19 @@ class _ScheduleDatePageState extends State<ScheduleDatePage> {
     }
   }
 
+  // ⭐ End date must always be AFTER start date
   void _selectEndDate() async {
     final DateTime now = DateTime.now();
+    final DateTime baseStart = _selectedDate ?? now.add(const Duration(days: 1));
+    final DateTime firstAllowedEndDate = baseStart.add(const Duration(days: 1));
+
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: (_endDate ?? _selectedDate ?? now),
-      firstDate: _selectedDate ?? now,
+      initialDate: firstAllowedEndDate,
+      firstDate: firstAllowedEndDate, // ⭐ cannot choose today or same start date
       lastDate: DateTime(now.year + 2),
     );
+
     if (picked != null) {
       setState(() {
         _endDate = picked;
@@ -113,8 +122,10 @@ class _ScheduleDatePageState extends State<ScheduleDatePage> {
       return;
     }
 
-    final formattedDate = DateFormat("yyyy-MM-dd'T'09:00:00").format(_selectedDate!);
-    final formattedEndDate = _endDate != null ? DateFormat("yyyy-MM-dd'T'09:00:00").format(_endDate!) : null;
+    final formattedDate = DateFormat("yyyy-MM-dd'T'00:00:00").format(_selectedDate!);
+    final formattedEndDate = _endDate != null
+        ? DateFormat("yyyy-MM-dd'T'23:59:59").format(_endDate!)
+        : null;
 
     context.pushNamed(
       'schedule-amount',
@@ -183,7 +194,7 @@ class _ScheduleDatePageState extends State<ScheduleDatePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // User Info
+            // User info card
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -239,12 +250,13 @@ class _ScheduleDatePageState extends State<ScheduleDatePage> {
 
             const SizedBox(height: 30),
 
-            // Start Date Selection
+            // Start date picker
             const Text(
               "Select Start Date",
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
+
             InkWell(
               onTap: _selectDate,
               borderRadius: BorderRadius.circular(12),
@@ -273,6 +285,7 @@ class _ScheduleDatePageState extends State<ScheduleDatePage> {
               ),
             ),
 
+            // End Date (only for recurring)
             if (_selectedFrequency != "ONE_TIME") ...[
               const SizedBox(height: 20),
               const Text(
@@ -317,6 +330,7 @@ class _ScheduleDatePageState extends State<ScheduleDatePage> {
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
+
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14),
               decoration: BoxDecoration(

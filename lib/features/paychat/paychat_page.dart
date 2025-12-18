@@ -223,6 +223,9 @@ class _PayChatPageState extends State<PayChatPage> {
               ))
           .toList();
 
+      // Sort descending by createdAt (newest first)
+      rooms.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
       setState(() {
         _chatRooms = rooms;
       });
