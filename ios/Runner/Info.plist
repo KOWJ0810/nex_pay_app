@@ -38,9 +38,13 @@
 	<key>NSCameraUsageDescription</key>
 	<string>Need camera access to scan your face</string>
 	<key>NSContactsUsageDescription</key>
-	<string>NexPay needs access to your contacts to start PayChat with friends.</string>	
+	<string>NexPay needs access to your contacts to start PayChat with friends.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Allow NexPay to use Face ID for secure sign-in.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>We need access to save receipts to your gallery.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>We need access to save receipts to your gallery.</string>
 	<key>NSUserActivityTypes</key>
 	<array>
 		<string>NSUserActivityTypeBrowsingWeb</string>
@@ -64,9 +68,5 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>We need access to save receipts to your gallery.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>We need access to save receipts to your gallery.</string>
 </dict>
 </plist>
